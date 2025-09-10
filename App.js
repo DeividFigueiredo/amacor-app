@@ -1,20 +1,99 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { ActivityIndicator, View, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
+import MainTabs from './MainTabs';
+
+const Stack = createStackNavigator();
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Verificar se o usuário já está logado ao iniciar o app
+  useEffect(() => {
+    console.log('App iniciando - verificando login...');
+    checkLoginStatus();
+  }, []);
+
+  const checkLoginStatus = async () => {
+    try {
+      console.log('Verificando AsyncStorage...');
+      const storedUserData = await AsyncStorage.getItem('userData');
+      console.log('Dados do AsyncStorage:', storedUserData);
+      
+      if (storedUserData) {
+        const userData = JSON.parse(storedUserData);
+        setUserData(userData);
+        setIsLoggedIn(true);
+        console.log('Usuário logado encontrado:', userData.sNomeUSR);
+      } else {
+        console.log('Nenhum usuário logado encontrado');
+      }
+    } catch (error) {
+      console.error('Erro ao verificar login:', error);
+    } finally {
+      console.log('Finalizando verificação, isLoading = false');
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async (userData) => {
+    try {
+      console.log('Fazendo login do usuário:', userData.sNomeUSR);
+      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      setUserData(userData);
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error('Erro ao salvar dados do usuário:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      console.log('Fazendo logout');
+      await AsyncStorage.removeItem('userData');
+      setUserData(null);
+      setIsLoggedIn(false);
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
+  };
+
+  if (isLoading) {
+    console.log('Mostrando loading...');
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#2E76B8" />
+        <Text style={{ marginTop: 10 }}>Carregando...</Text>
+      </View>
+    );
+  }
+
+  console.log('Renderizando navegação. isLoggedIn:', isLoggedIn);
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {isLoggedIn ? (
+          // Usuário logado - mostra a tela principal
+          <Stack.Screen name="home">
+            {(props) => <MainTabs {...props} userData={userData} onLogout={handleLogout} />}
+          </Stack.Screen>
+        ) : (
+          // Usuário não logado - mostra telas de autenticação
+          <>
+            <Stack.Screen name="Login">
+              {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
+            </Stack.Screen>
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
