@@ -45,6 +45,7 @@ export default function CarteirinhaScreen() {
     const dataNascimento = userData.dNascimento; // Formato esperado: dd/mm/aaaa
     const token = gerarChave(cpf, dataNascimento);
     const freshData = await buscarCard('/get_card_ext', cpf, token);
+    const key = token
     
     if (!freshData) {
       throw new Error('Não foi possível obter dados atualizados da carteirinha, verifique sua conexão com a internet.');

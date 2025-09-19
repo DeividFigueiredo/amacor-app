@@ -5,7 +5,7 @@ import { criarChaveCripto } from "./crypto";
 
 export async function buscarCard(endpoint, cpf, token) {
     cpf = '?cpf=' + cpf + '&token=';
-    url = getEverflowUrl();
+    const url = getEverflowUrl();
      
     try {
         const response = await fetch(url + endpoint + cpf + token);
@@ -28,7 +28,7 @@ export async function buscarCard(endpoint, cpf, token) {
             console.log('Modo criptografado detectado');
             console.log('Dados criptografados:', encryptedData.substring(0, 50) + '...');
             console.log('IV:', iv);
-            key = criarChaveCripto(token);
+            const key = criarChaveCripto(token);
 
             decryptedData = decryptData(key, encryptedData, iv);
         } else if (typeof data === 'object') {
