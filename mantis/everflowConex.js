@@ -1,6 +1,7 @@
 import { decryptData } from "./crypto";
 import { getEverflowUrl } from "./config"
 import { criarChaveCripto } from "./crypto";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // Função para buscar dados do backend
 
 export async function buscarCard(endpoint, cpf, token) {
@@ -65,4 +66,15 @@ export async function buscarCard(endpoint, cpf, token) {
         console.error('Erro ao buscar dados:', error);
         return null;
     }
+}
+
+export async function buscarPagamentos(endpoint, contrato, token) {
+    const url = getEverflowUrl();
+    const dados = AsyncStorage.getItem('userData');
+
+    console.log(dados);
+
+
+
+    
 }

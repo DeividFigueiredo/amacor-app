@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import MainTabs from './MainTabs';
+import BoletosScreen from './screens/BoletosScreen';
 
 const Stack = createStackNavigator();
 
@@ -77,23 +78,43 @@ export default function App() {
   console.log('Renderizando navegação. isLoggedIn:', isLoggedIn);
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isLoggedIn ? (
-          // Usuário logado - mostra a tela principal
+  <NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isLoggedIn ? (
+        <>
+          {/* 🌟 Tela principal com Tabs */}
           <Stack.Screen name="home">
-            {(props) => <MainTabs {...props} userData={userData} onLogout={handleLogout} />}
+            {(props) => (
+              <MainTabs
+                {...props}
+                userData={userData}
+                onLogout={handleLogout}
+              />
+            )}
           </Stack.Screen>
-        ) : (
-          // Usuário não logado - mostra telas de autenticação
-          <>
-            <Stack.Screen name="Login">
-              {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
-            </Stack.Screen>
-            <Stack.Screen name="Register" component={RegisterScreen} />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
+
+          {/* 🌟 Nova rota para Boletos */}
+          <Stack.Screen
+            name="Boletos"
+            component={BoletosScreen}
+            options={{
+              headerShown: true,      // Mostra o header nessa tela
+              title: "Meus Boletos",  // Título no topo
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff", // Cor do texto e botão de voltar
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {/* Telas de autenticação */}
+          <Stack.Screen name="Login">
+            {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
+          </Stack.Screen>
+          <Stack.Screen name="Register" component={RegisterScreen} />
+        </>
+      )}
+    </Stack.Navigator>
+  </NavigationContainer>
+);
 }

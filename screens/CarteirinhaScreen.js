@@ -12,6 +12,8 @@ export default function CarteirinhaScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentToken, setCurrentToken] = useState(null); // Estado para o token
+  
+
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -46,13 +48,25 @@ export default function CarteirinhaScreen() {
     const token = gerarChave(cpf, dataNascimento);
     const freshData = await buscarCard('/get_card_ext', cpf, token);
     const key = token
+    print(freshData)
     
+
+
+    if (freshData) {
+        setUserData(freshData);
+        await AsyncStorage.setItem('userData', JSON.stringify(freshData));
+      } else {
+        setError('Não foi possível carregar os dados');
+      }
     if (!freshData) {
       throw new Error('Não foi possível obter dados atualizados da carteirinha, verifique sua conexão com a internet.');
     }
     
+    
+    
     const tokenGerado = gerarTokenAutorizacao(key, timestamp);
     setCurrentToken(tokenGerado);
+    
     
     Alert.alert(
       'Token Gerado',

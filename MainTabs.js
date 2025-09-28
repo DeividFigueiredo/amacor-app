@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text } from 'react-native'; // ✅ Adicione Text aqui
 import HomeScreen from './screens/home';
 import CarteirinhaScreen from './screens/CarteirinhaScreen';
+import PerfilScreen from './screens/Perfil';
 import SettingsScreen from './screens/SettingsScreen'; // ✅ Importe a SettingsScreen real
+import boletoScreen from './screens/BoletosScreen';
 
 // ✅ Telas placeholder CORRETAS com React Native
 function ServicesScreen() {
@@ -15,13 +17,6 @@ function ServicesScreen() {
   );
 }
 
-function ProfileScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Perfil - Em desenvolvimento</Text>
-    </View>
-  );
-}
 
 
 
@@ -107,6 +102,8 @@ function MainTabs({ userData, onLogout }) {
         {(props) => <HomeScreen {...props} userData={userData} onLogout={onLogout} />}
       </Tab.Screen>
 
+      
+
       {/* 2. SERVIÇOS */}
       <Tab.Screen 
         name="Services" 
@@ -128,7 +125,7 @@ function MainTabs({ userData, onLogout }) {
       {/* 4. PERFIL */}
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen}
+        component={PerfilScreen}
         options={{
           tabBarLabel: 'Perfil',
         }}
@@ -137,10 +134,12 @@ function MainTabs({ userData, onLogout }) {
       {/* 5. AJUSTES - COM PASSO DE onLogout */}
       <Tab.Screen 
       name="Settings"
-      options={{ tabBarLabel: 'Ajustes' }}
+      options={{ tabBarLabel: 'Ajustes',
+        }}
       >
       {(props) => <SettingsScreen {...props} onLogout={onLogout} />}
       </Tab.Screen>
+     
     </Tab.Navigator>
   );
 }
