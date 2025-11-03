@@ -21,7 +21,7 @@ export default function PerfilScreen({ navigation }) {
         >
           <Ionicons name="cash" size={24} color="#42741aff" />
           <Text style={[styles.menuText, styles.logoutText]}>
-            Solicitar Boleto
+            Informações Financeiras
           </Text>
         </TouchableOpacity>
       </View>

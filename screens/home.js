@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { onLogout } from '../screens/SettingsScreen';
+import { useIsFocused } from '@react-navigation/native'; // ✅ ADICIONE ESTE IMPORT
+import { buscarCard } from '../mantis/everflowConex';
+import { gerarChave } from '../mantis/crypto';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ onLogout }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [beneficiarioCancelado, setBeneficiarioCancelado] = useState(false);
+  
+  // ✅ HOOK PARA SABER SE A TELA ESTÁ EM FOCO
+  const isFocused = useIsFocused();
 
-  useEffect(() => {
   const fetchUserData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       const storedUserData = await AsyncStorage.getItem('userData');
       if (storedUserData) {
@@ -39,28 +45,103 @@ export default function HomeScreen({ navigation }) {
           }
         }
       }
-      
+        
       // 📡 BUSCA NOVOS DADOS SE EXPIRADO OU NÃO ENCONTRADO
       console.log('Buscando dados na API...');
-      const token = gerarChave(cpf, dataNascimento);
-      const freshData = await buscarCard('/get_card_ext', cpf, token);
       
-      if (freshData) {
-        setUserData(freshData);
-        await AsyncStorage.setItem('userData', JSON.stringify(freshData));
+      // Precisa do CPF e data de nascimento para gerar o token
+      const storedUser = await AsyncStorage.getItem('userData');
+      if (storedUser) {
+        const tempData = JSON.parse(storedUser);
+        const cpf = tempData.sCpfUSR;
+        const dataNascimento = tempData.dNascimento;
+        
+        if (cpf && dataNascimento) {
+          const token = gerarChave(cpf, dataNascimento);
+          const freshData = await buscarCard('/get_card_ext', cpf, token);
+          
+          if (freshData) {
+            setUserData(freshData);
+            await AsyncStorage.setItem('userData', JSON.stringify(freshData));
+          } else {
+            setError('Não foi possível carregar os dados');
+          }
+        } else {
+          setError('Dados incompletos para buscar informações');
+        }
       } else {
-        setError('Não foi possível carregar os dados');
+        setError('Dados de usuário não encontrados');
       }
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
-      setError('Erro ao carregar dados: ' + 'O erro pode sugerir que o seu plano está inativo, por favor, entre em contato com a Amacor.');
+      
+      // 🎯 TRATAR ERRO DE BENEFICIÁRIO CANCELADO
+      if (err.message.includes('Beneficiário cancelado')) {
+        const motivo = err.message.replace('Beneficiário cancelado: ', '');
+        setBeneficiarioCancelado(true);
+        
+        Alert.alert(
+          'Conta Cancelada', 
+          `Sua conta foi cancelada. Motivo: ${motivo}\n\nEntre em contato com o suporte para mais informações.`,
+          [
+            { 
+              text: 'Entendi', 
+              onPress: () => {
+                // Opcional: navegar para tela de suporte ou login
+              }
+            }
+          ]
+        );
+      } else {
+        setError('Erro ao carregar dados: ' + 'O erro pode sugerir que o seu plano está inativo, por favor, entre em contato com a Amacor.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  fetchUserData();
-}, []);
+  useEffect(() => {
+    // 🔥 BUSCA OS DADOS NA PRIMEIRA VEZ
+    fetchUserData();
+  }, []);
+
+  // ✅ ESCUTA QUANDO A TELA GANHA FOCO
+  useEffect(() => {
+    if (isFocused) {
+      console.log('HomeScreen recebeu foco - verificando dados...');
+      fetchUserData();
+    }
+  }, [isFocused]);
+  // 🎯 TELA DE BENEFICIÁRIO CANCELADO
+  if (beneficiarioCancelado) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.canceladoContainer}>
+          <Ionicons name="close-circle" size={80} color="#e74c3c" />
+          <Text style={styles.tituloCancelado}>Conta Cancelada</Text>
+          <Text style={styles.descricaoCancelado}>
+            Sua conta de beneficiário foi cancelada. Entre em contato com o suporte para mais informações.
+          </Text>
+          <TouchableOpacity 
+            style={styles.botaoSuporte}
+            onPress={() => {
+              Alert.alert('Suporte', 'Entre em contato com nossa central de atendimento.');
+            }}
+          >
+          <Text style={styles.botaoSuporteText}>Falar com Suporte</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.botaoSecundario}
+            onPress={() => {
+              onLogout(); // ✅ Chama a função do App.js
+            }}
+          >
+            <Text style={styles.botaoSecundarioText}>Fazer Login Novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (loading) {
     return (
@@ -78,7 +159,9 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity 
           style={styles.retryButton}
-          onPress={() => navigation.navigate('Login')} // ⬅️ Leva para o login
+          onPress={() => {
+              onLogout(); // ✅ Chama a função do App.js
+            }}
         >
           <Text style={styles.retryText}>Fazer Login</Text>
         </TouchableOpacity>
@@ -93,45 +176,94 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.welcomeText}>
             Olá, {userData ? userData.sNomeUSR.split(' ')[0] : 'Usuário'}!
           </Text>
-          <Text style={styles.welcomeSubtext}>Seu plano está ativo</Text>
+          <Text style={styles.welcomeSubtext}>
+            {userData && userData.sMotivoCancelamentoUSR 
+              ? 'Seu plano está cancelado' 
+              : 'Seu plano está ativo'
+            }
+          </Text>
+          
+          {/* 🎯 INDICADOR DE STATUS */}
+          {userData && userData.sMotivoCancelamentoUSR && (
+            <View style={styles.statusBadge}>
+              <Ionicons name="warning" size={16} color="white" />
+              <Text style={styles.statusBadgeText}>CONTA CANCELADA</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Sobre seu Plano:</Text>
           <View style={styles.planInfo}>
-            <Ionicons name="medical" size={24} color="#2E76B8" />
+            <Ionicons 
+              name="medical" 
+              size={24} 
+              color={userData && userData.sMotivoCancelamentoUSR ? "#e74c3c" : "#2E76B8"} 
+            />
             <View style={styles.planDetails}>
-              <Text style={styles.planName}>
+              <Text style={[
+                styles.planName,
+                userData && userData.sMotivoCancelamentoUSR && styles.planCancelado
+              ]}>
                 {userData ? userData.sNomePRD : 'Carregando...'}
               </Text>
               <Text style={styles.planNumber}>
                 Matricula: {userData ? userData.sCodigoUSRTIT : 'Carregando...'}
               </Text>
+              {userData && userData.sMotivoCancelamentoUSR && (
+                <Text style={styles.motivoCancelamento}>
+                  Motivo: {userData.sMotivoCancelamentoUSR}
+                </Text>
+              )}
             </View>
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Próximos Passos</Text>
+          <Text style={styles.cardTitle}>Menu Rápido:</Text>
+          
+          {/* 🎯 OCULTA ALGUMAS OPÇÕES SE ESTIVER CANCELADO */}
+          {!userData?.sMotivoCancelamentoUSR ? (
+            <>
+              <TouchableOpacity style={styles.menuItem}>
+                <Ionicons name="calendar" size={24} color="#2E76B8" />
+                <Text style={styles.menuText}>Agendar Consulta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem}>
+                <Ionicons name="location" size={24} color="#2E76B8" />
+                <Text style={styles.menuText}>Encontrar Clínicas</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.avisoContainer}>
+              <Ionicons name="information-circle" size={20} color="#e74c3c" />
+              <Text style={styles.avisoText}>
+                Algumas funcionalidades estão indisponíveis para contas canceladas
+              </Text>
+            </View>
+          )}
+          
           <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="calendar" size={24} color="#2E76B8" />
-            <Text style={styles.menuText}>Agendar Consulta</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="location" size={24} color="#2E76B8" />
-            <Text style={styles.menuText}>Encontrar Clínicas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="document-text" size={24} color="#2E76B8" />
-            <Text style={styles.menuText}>Extrato de Utilização</Text>
+            <Ionicons name="cash" size={24} color="#42741aff" />
+            <Text style={styles.menuText}>Pagamento de mensalidade</Text>
           </TouchableOpacity>
         </View>
+
+        {/* 🎯 CARD DE SUPORTE SE ESTIVER CANCELADO */}
+        {userData && userData.sMotivoCancelamentoUSR && (
+          <View style={[styles.card, styles.suporteCard]}>
+            <Text style={styles.cardTitle}>Precisa de Ajuda?</Text>
+            <TouchableOpacity style={styles.suporteButton}>
+              <Ionicons name="call" size={20} color="white" />
+              <Text style={styles.suporteButtonText}>Falar com Suporte</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// Ajuste os estilos - REMOVA o paddingBottom
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -140,7 +272,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
-    // REMOVA: paddingBottom: 80,
   },
   welcomeCard: {
     backgroundColor: '#2E76B8',
@@ -158,6 +289,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     opacity: 0.9,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+  },
+  statusBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
   card: {
     backgroundColor: 'white',
@@ -182,16 +329,27 @@ const styles = StyleSheet.create({
   },
   planDetails: {
     marginLeft: 12,
+    flex: 1,
   },
   planName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
   },
+  planCancelado: {
+    color: '#e74c3c',
+    textDecorationLine: 'line-through',
+  },
   planNumber: {
     fontSize: 14,
     color: '#7f8c8d',
     marginTop: 4,
+  },
+  motivoCancelamento: {
+    fontSize: 12,
+    color: '#e74c3c',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   menuItem: {
     flexDirection: 'row',
@@ -237,7 +395,82 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  
-  // REMOVA todos os estilos relacionados à tabBar:
-  // tabBar, tabItem, tabText, centralButton, buttonCircle, centralButtonText
+  // 🎯 ESTILOS PARA BENEFICIÁRIO CANCELADO
+  canceladoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  tituloCancelado: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  descricaoCancelado: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: 30,
+    lineHeight: 22,
+  },
+  botaoSuporte: {
+    backgroundColor: '#2E76B8',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  botaoSuporteText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  botaoSecundario: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2E76B8',
+  },
+  botaoSecundarioText: {
+    color: '#2E76B8',
+    fontWeight: 'bold',
+  },
+  // 🎯 ESTILOS PARA AVISOS
+  avisoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff3e0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  avisoText: {
+    fontSize: 14,
+    color: '#e65100',
+    marginLeft: 8,
+    flex: 1,
+  },
+  // 🎯 ESTILOS PARA CARD DE SUPORTE
+  suporteCard: {
+    backgroundColor: '#fff3e0',
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+  },
+  suporteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e74c3c',
+    padding: 12,
+    borderRadius: 8,
+  },
+  suporteButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
 });

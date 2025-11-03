@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { gerarTokenAutorizacao } from '../mantis/crypto'; // Importe a função
-import CryptoJS from 'crypto-js'; // Certifique-se de ter esta importação
+import { gerarTokenAutorizacao } from '../mantis/crypto';
 import { buscarCard } from '../mantis/everflowConex';
-import { gerarChave } from '../mantis/crypto'; // Importe a função para gerar chave
-
+import { gerarChave } from '../mantis/crypto';
 
 export default function CarteirinhaScreen() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentToken, setCurrentToken] = useState(null); // Estado para o token
-  
-
+  const [currentToken, setCurrentToken] = useState(null);
+  const [beneficiarioCancelado, setBeneficiarioCancelado] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -41,53 +38,110 @@ export default function CarteirinhaScreen() {
 
   // 🔥 FUNÇÃO PARA GERAR TOKEN
   const handleGenerateToken = async () => {
-  try {
-    const timestamp = Date.now().toString();
-    const cpf = userData.sCpfUSR;
-    const dataNascimento = userData.dNascimento; // Formato esperado: dd/mm/aaaa
-    const token = gerarChave(cpf, dataNascimento);
-    const freshData = await buscarCard('/get_card_ext', cpf, token);
-    const key = token
-    print(freshData)
-    
+    try {
+      const timestamp = Date.now().toString();
+      const cpf = userData.sCpfUSR;
+      const dataNascimento = userData.dNascimento;
+      const token = gerarChave(cpf, dataNascimento);
+      const freshData = await buscarCard('/get_card_ext', cpf, token);
+      const key = token;
 
+      console.log('Dados atualizados:', freshData);
 
-    if (freshData) {
+      if (freshData) {
         setUserData(freshData);
         await AsyncStorage.setItem('userData', JSON.stringify(freshData));
       } else {
         setError('Não foi possível carregar os dados');
       }
-    if (!freshData) {
-      throw new Error('Não foi possível obter dados atualizados da carteirinha, verifique sua conexão com a internet.');
+      
+      if (!freshData) {
+        throw new Error('Não foi possível obter dados atualizados da carteirinha, verifique sua conexão com a internet.');
+      }
+      
+      const tokenGerado = gerarTokenAutorizacao(key, timestamp);
+      setCurrentToken(tokenGerado);
+      
+      Alert.alert(
+        'Token Gerado',
+        `Token: ${tokenGerado}\n\nUse este token para autorizar consultas.`,
+        [
+          {
+            text: 'Copiar',
+            onPress: () => {
+              console.log('Token copiado:', tokenGerado);
+            }
+          },
+          { text: 'OK', onPress: () => {} }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('Erro ao gerar token:', error);
+      
+      // 🎯 TRATAR ERRO DE BENEFICIÁRIO CANCELADO
+      if (error.message.includes('Beneficiário cancelado')) {
+        const motivo = error.message.replace('Beneficiário cancelado: ', '');
+        setBeneficiarioCancelado(true);
+        
+        Alert.alert(
+          'Conta Cancelada',
+          `Sua conta foi cancelada. Motivo: ${motivo}\n\nEntre em contato com o suporte para mais informações.`,
+          [
+            { 
+              text: 'Entendi', 
+              onPress: () => {}
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Erro', 
+          'Não foi possível gerar o token. Verifique sua conexão e tente novamente.'
+        );
+      }
     }
-    
-    
-    
-    const tokenGerado = gerarTokenAutorizacao(key, timestamp);
-    setCurrentToken(tokenGerado);
-    
-    
-    Alert.alert(
-      'Token Gerado',
-      `Token: ${tokenGerado}\n\nUse este token para autorizar consultas.`,
-      [
-        {
-          text: 'Copiar',
-          onPress: () => {
-            // Implementar cópia para clipboard
-            console.log('Token copiado:', tokenGerado);
-          }
-        },
-        { text: 'OK', onPress: () => {} }
-      ]
+  };
+
+  // 🎯 TELA DE BENEFICIÁRIO CANCELADO
+  if (beneficiarioCancelado) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.canceladoContainer}>
+          <Text style={styles.iconeCancelado}>❌</Text>
+          <Text style={styles.tituloCancelado}>Conta Cancelada</Text>
+          <Text style={styles.descricaoCancelado}>
+            Sua conta de beneficiário foi cancelada. Entre em contato com o suporte para mais informações.
+          </Text>
+          <TouchableOpacity 
+            style={styles.botaoSuporte}
+            onPress={() => {
+              Alert.alert('Suporte', 'Entre em contato com nossa central de atendimento.');
+            }}
+          >
+            <Text style={styles.botaoSuporteText}>Falar com Suporte</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
-    
-  } catch (error) {
-    console.error('Erro ao gerar token:', error);
-    Alert.alert('Erro', 'Não foi possível gerar o token. Verifique sua conexão e tente novamente.');
   }
-};
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2E76B8" />
+        <Text style={styles.loadingText}>Carregando carteirinha...</Text>
+      </View>
+    );
+  }
+
+  if (error && !userData) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -101,22 +155,40 @@ export default function CarteirinhaScreen() {
             <Text style={styles.number}>Nº da matricula: {userData.sCodigoUSRTIT}</Text>
             <Text style={styles.validity}>Ativo desde: {userData.dSituacao}</Text>
             <Text style={styles.validity}>Válido até: {userData.validThru}</Text>
+            
+            {/* 🎯 INDICADOR DE STATUS (mantendo estilo da sua tela) */}
+            {userData.sMotivoCancelamentoUSR && (
+              <View style={styles.statusContainer}>
+                <Text style={styles.statusTextCancelado}>CONTA CANCELADA</Text>
+              </View>
+            )}
           </View>
 
-          {/* 🔥 BOTÃO PARA GERAR TOKEN */}
-          <TouchableOpacity 
-            style={styles.tokenButton}
-            onPress={handleGenerateToken}
-          >
-            <Text style={styles.tokenButtonText}>Gerar Token de Autorização</Text>
-          </TouchableOpacity>
+          {/* 🔥 BOTÃO PARA GERAR TOKEN (só mostra se não estiver cancelado) */}
+          {!userData.sMotivoCancelamentoUSR && (
+            <TouchableOpacity 
+              style={styles.tokenButton}
+              onPress={handleGenerateToken}
+            >
+              <Text style={styles.tokenButtonText}>Gerar Token de Autorização</Text>
+            </TouchableOpacity>
+          )}
 
-          {/* 🔥 EXIBIR TOKEN ATUAL (opcional) */}
+          {/* 🔥 EXIBIR TOKEN ATUAL */}
           {currentToken && (
             <View style={styles.tokenContainer}>
               <Text style={styles.tokenLabel}>Token atual:</Text>
               <Text style={styles.tokenValue}>{currentToken}</Text>
               <Text style={styles.tokenHint}>Use este token para consultas autorizadas</Text>
+            </View>
+          )}
+
+          {/* 🎯 AVISO SE JÁ ESTIVER CANCELADO NOS DADOS LOCAIS */}
+          {userData.sMotivoCancelamentoUSR && (
+            <View style={styles.avisoContainer}>
+              <Text style={styles.avisoText}>
+                ⚠️ Esta conta está cancelada. Para mais informações, entre em contato com o suporte.
+              </Text>
             </View>
           )}
         </View>
@@ -229,5 +301,67 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#e74c3c',
     textAlign: 'center',
+  },
+  // 🎯 ESTILOS PARA BENEFICIÁRIO CANCELADO
+  canceladoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  iconeCancelado: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  tituloCancelado: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  descricaoCancelado: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: 30,
+    lineHeight: 22,
+  },
+  botaoSuporte: {
+    backgroundColor: '#2E76B8',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  botaoSuporteText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  // 🎯 ESTILOS PARA STATUS
+  statusContainer: {
+    backgroundColor: '#ffebee',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+  },
+  statusTextCancelado: {
+    color: '#e74c3c',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  // 🎯 ESTILOS PARA AVISO
+  avisoContainer: {
+    backgroundColor: '#fff3e0',
+    padding: 15,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9800',
+  },
+  avisoText: {
+    color: '#e65100',
+    textAlign: 'center',
+    fontSize: 14,
   },
 });

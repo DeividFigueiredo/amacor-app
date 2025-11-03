@@ -92,6 +92,7 @@ export default function LoginScreen({ navigation, onLogin }) {
         </View>
         <Text style={styles.title}>Amacor Saúde</Text>
         <Text style={styles.subtitle}>Acesse sua conta</Text>
+        
       </View>
 
       <View style={styles.formContainer}>
@@ -142,6 +143,9 @@ export default function LoginScreen({ navigation, onLogin }) {
           </Text>
         </TouchableOpacity>
       </View>
+      <View>
+        <Text  style={styles.EverFlow}>Powered By EverFlow</Text>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -172,6 +176,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2E76B8',
     marginBottom: 5,
+  },
+  EverFlow:{
+    fontSize: 12,
+    color: '#95a5a6',
+    marginBottom: 20,
   },
   subtitle: {
     fontSize: 16,
