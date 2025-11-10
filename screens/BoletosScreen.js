@@ -30,7 +30,9 @@ export default function BoletosScreen() {
 
       const userData = JSON.parse(userDataString);
       const cpf = userData.sCpfUSR;
+      console.log('CPF do usuário:', cpf);
       const dataNascimento = userData.dNascimento;
+      console.log('Data de Nascimento do usuário:', dataNascimento);
       const contrato = userData.sNumeroCNT;
 
       if (!cpf || !dataNascimento || !contrato) {
@@ -39,7 +41,7 @@ export default function BoletosScreen() {
 
       const contrato2 = '?contrato=' + contrato + '&token=';
       const token = gerarChave(cpf, dataNascimento);
-      const boletosData = await buscarPagamentos('/gerar_boleto_ext', contrato2, token);
+      const boletosData = await buscarPagamentos('/gerar_boleto_ext', contrato, token);
       
       console.log('Dados recebidos da API:', boletosData);
       

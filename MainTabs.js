@@ -7,21 +7,12 @@ import CarteirinhaScreen from './screens/CarteirinhaScreen';
 import PerfilScreen from './screens/Perfil';
 import SettingsScreen from './screens/SettingsScreen'; // ✅ Importe a SettingsScreen real
 import boletoScreen from './screens/BoletosScreen';
+import ServicesScreen from './screens/ServicosScreen';
 
 // ✅ Telas placeholder CORRETAS com React Native
-function ServicesScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Serviços - Em desenvolvimento</Text>
-    </View>
-  );
-}
-
-
 
 
 const Tab = createBottomTabNavigator();
-
 function MainTabs({ userData, onLogout }) {
   return (
     <Tab.Navigator
@@ -130,7 +121,7 @@ function MainTabs({ userData, onLogout }) {
           tabBarLabel: 'Perfil',
         }}
       />
-
+    
       {/* 5. AJUSTES - COM PASSO DE onLogout */}
       <Tab.Screen 
       name="Settings"
@@ -139,6 +130,7 @@ function MainTabs({ userData, onLogout }) {
       >
       {(props) => <SettingsScreen {...props} onLogout={onLogout} />}
       </Tab.Screen>
+      
      
     </Tab.Navigator>
   );

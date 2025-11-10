@@ -6,7 +6,7 @@ import { useIsFocused } from '@react-navigation/native'; // ✅ ADICIONE ESTE IM
 import { buscarCard } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
 
-export default function HomeScreen({ onLogout }) {
+export default function HomeScreen({ onLogout, navigation }) {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -231,7 +231,9 @@ export default function HomeScreen({ onLogout }) {
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem}>
                 <Ionicons name="location" size={24} color="#2E76B8" />
-                <Text style={styles.menuText}>Encontrar Clínicas</Text>
+                <Text style={styles.menuText}
+                onPress= {() => navigation.navigate('BuscarEspecialidade')}
+                >Encontrar Clínicas</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -243,7 +245,8 @@ export default function HomeScreen({ onLogout }) {
             </View>
           )}
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem}
+           onPress={() => navigation.navigate("Boletos")}>
             <Ionicons name="cash" size={24} color="#42741aff" />
             <Text style={styles.menuText}>Pagamento de mensalidade</Text>
           </TouchableOpacity>

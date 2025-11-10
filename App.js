@@ -7,6 +7,10 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import MainTabs from './MainTabs';
 import BoletosScreen from './screens/BoletosScreen';
+import BuscarEspecialidades from './screens/BuscarEspecialidadeScreen';
+import ResultadosClinicas from './screens/ResultadosClinicas';
+import BrowserScreen from './screens/BrowserScreen';
+
 
 const Stack = createStackNavigator();
 
@@ -100,6 +104,40 @@ export default function App() {
             options={{
               headerShown: true,      // Mostra o header nessa tela
               title: "Meus Boletos",  // Título no topo
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff",
+              headerTintColor: "#fff", // Cor do texto e botão de voltar
+            }}
+          />
+
+          <Stack.Screen 
+            name="Telemedicina" 
+            component={BrowserScreen}
+            options={{ 
+              headerShown: true,
+              tittle: "Telemedicina",
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff",
+            }}
+            />
+
+          <Stack.Screen 
+            name="ResultadosClinicas" 
+            component={ResultadosClinicas} 
+            options={{ 
+              headerShown: true,      // Mostra o header nessa tela
+              title: "Especialidades",  // Título no topo
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff", // Cor do texto e botão de voltar
+            }}
+          />
+
+          <Stack.Screen
+            name="BuscarEspecialidades"
+            component={BuscarEspecialidades}
+            options={{
+              headerShown: true,      // Mostra o header nessa tela
+              title: "Especialidades",  // Título no topo
               headerStyle: { backgroundColor: "#2E76B8" },
               headerTintColor: "#fff", // Cor do texto e botão de voltar
             }}

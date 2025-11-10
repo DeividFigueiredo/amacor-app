@@ -42,6 +42,7 @@ export default function CarteirinhaScreen() {
       const timestamp = Date.now().toString();
       const cpf = userData.sCpfUSR;
       const dataNascimento = userData.dNascimento;
+      console.log('Gerando token para CPF:', cpf, 'e Data de Nascimento:', dataNascimento);
       const token = gerarChave(cpf, dataNascimento);
       const freshData = await buscarCard('/get_card_ext', cpf, token);
       const key = token;

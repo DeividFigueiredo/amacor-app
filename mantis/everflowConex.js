@@ -4,14 +4,21 @@ import { criarChaveCripto } from "./crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export async function buscarCard(endpoint, cpf, token) {
-    cpf = '?cpf=' + cpf + '&token=';
+    
     const url = getEverflowUrl();
      
     try {
         console.log('🔍 Iniciando busca de dados...');
-        
-        const response = await fetch(url + endpoint + cpf + token);
-
+        console.log('token:', token)
+        const response = await fetch(url + endpoint, {
+        method: 'POST', // muda para POST
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': ` ${token}` // opcional, mais seguro que enviar no corpo
+        },
+      body: JSON.stringify({ cpf }) // envia o cpf em JSON
+    });
+    console.log('URL de requisição:', url + endpoint);
         if (!response.ok) {
             throw new Error('Erro na requisição: ' + response.status);
         }
@@ -130,7 +137,14 @@ export async function buscarPagamentos(endpoint, contrato, token) {
 
     console.log("Dados encontrados:"+dados);
      try {
-        const response = await fetch(url + endpoint + contrato + token);
+        const response = await fetch(url + endpoint, {
+        method: 'POST', // muda para POST
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': ` ${token}` // opcional, mais seguro que enviar no corpo
+        },
+      body: JSON.stringify({ contrato }) // envia o cpf em JSON
+    });
         
 
         if (!response.ok) {
@@ -146,4 +160,57 @@ export async function buscarPagamentos(endpoint, contrato, token) {
         return null;
     }
     
+}
+
+export async function buscarClinicas(endpoint, especialidade, token){
+    const url= getEverflowUrl();
+
+    try{
+        const response = await fetch (url + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': ` ${token}`
+            },
+            body: JSON.stringify({especialidade})
+        });
+
+        if (!response.ok){
+            throw new Error ('Erro na requisição:' + response.status);
+        }
+        const data= await response.json();
+        console.log('Dados recebidos da API:', data);
+
+         let decryptedData;
+        
+        if (Array.isArray(data) && data.length === 2) {
+            console.log('🔒 Modo criptografado detectado');
+            const encryptedData = data[0];
+            const iv = data[1];
+            const key = criarChaveCripto(token);
+            decryptedData = decryptData(key, encryptedData, iv);
+        } else if (typeof data === 'object') {
+            console.log('📄 Modo não criptografado detectado');
+            decryptedData = data;
+        } else {
+            throw new Error('Formato de resposta não reconhecido');
+        }
+
+        console.log('🔓 Dados descriptografados:', JSON.stringify(decryptedData, null, 2));
+
+        // 🔍 VERIFICAR SE O BENEFICIÁRIO FOI CANCELADO
+        if (decryptedData) {
+            return decryptedData;
+        }
+
+    } catch (error) {
+        console.error('🚨 Erro ao buscar dados:', error);
+        
+        if (error.message.includes('Beneficiário cancelado')) {
+            throw error;
+        }
+        
+        return null;
+    }
+
 }
