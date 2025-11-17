@@ -214,3 +214,29 @@ export async function buscarClinicas(endpoint, especialidade, token){
     }
 
 }
+
+export async function retornarSuspenso(endpoint, contrato, token){
+    const url = getEverflowUrl();
+    try {
+        const response = await fetch(url + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}` // removi o espaço extra
+            },
+            body: JSON.stringify({ contrato })
+        })
+        
+        if (!response.ok) {
+            throw new Error('Erro na requisição: ' + response.status);
+        }
+        
+        const data = await response.json(); // Se o endpoint retornar algo
+        console.log('Resposta do endpoint:', data);
+        return data;
+        
+    } catch (error) {
+        console.error('🚨 Erro ao buscar dados:', error);
+        throw error; // Propaga o erro para ser tratado acima
+    }
+}

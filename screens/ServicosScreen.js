@@ -17,7 +17,7 @@ export default function ServicesScreen( { navigation } ) {
           
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="calendar" size={24} color="#2E76B8" />
-            <Text style={styles.menuText}>Agendar consulta</Text>
+            <Text style={styles.menuText}>Solicitar autorização</Text>
            
           </TouchableOpacity>
   

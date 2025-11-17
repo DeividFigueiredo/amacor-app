@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gerarTokenAutorizacao } from '../mantis/crypto';
 import { buscarCard } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
+import { Linking } from 'react-native';
+import { retornarSuspenso } from '../mantis/everflowConex';
 
 export default function CarteirinhaScreen() {
   const [userData, setUserData] = useState(null);
@@ -37,7 +39,7 @@ export default function CarteirinhaScreen() {
   }, []);
 
   // 🔥 FUNÇÃO PARA GERAR TOKEN
-  const handleGenerateToken = async () => {
+const handleGenerateToken = async () => {
     try {
       const timestamp = Date.now().toString();
       const cpf = userData.sCpfUSR;
@@ -59,7 +61,77 @@ export default function CarteirinhaScreen() {
       if (!freshData) {
         throw new Error('Não foi possível obter dados atualizados da carteirinha, verifique sua conexão com a internet.');
       }
-      
+
+      // VERIFICAR SE EXISTE STATUS DO PLANO
+      if (freshData.status_plano) {
+        const statusInfo = freshData.status_plano;
+        
+        const suspenso = freshData.suspenso;
+      if (suspenso === 1) {
+        Alert.alert(
+          'Acesso Bloqueado',
+          `Seu acesso está suspenso. Motivo: ${freshData.motivo_suspensao || 'Não informado'}\n\nEntre em contato com o suporte para regularizar sua situação.`,
+          [{ text: 'Entendi' }]
+        );
+        return; // Impede a continuação
+      }
+        
+        // Função para abrir link e enviar contrato
+        const handleOpenLink = async (url, contrato) => {
+          try {
+            // Primeiro envia o contrato para o endpoint
+            try {
+              await retornarSuspenso('/suspender_cnt', contrato, token);
+              console.log('Contrato enviado com sucesso:', contrato);
+            } catch (error) {
+              console.error('Erro ao enviar contrato:', error);
+              // Não mostra alerta para não interromper o fluxo
+            }
+
+            // Depois abre o link
+            const supported = await Linking.canOpenURL(url);
+            if (supported) {
+              await Linking.openURL(url);
+            } else {
+              Alert.alert('Erro', 'Não foi possível abrir o link');
+            }
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível abrir o link');
+          }
+        };
+
+        // Aguarda confirmação do usuário sobre o status do plano
+        await new Promise((resolve) => {
+          let url = statusInfo.complemento_fase;
+          if (url && !url.startsWith('http')) {
+            url = 'https://' + url;
+          }
+
+          const buttons = [
+            {
+              text: '🔗 Abrir Link',
+              onPress: async () => {
+                await handleOpenLink(url, freshData.sNumeroCNT);
+                // IMPORTANTE: Resolve a Promise após abrir o link
+                resolve(true);
+              }
+            }
+          ];
+
+          Alert.alert(
+            '📦 Status do Plano',
+            `Status: ${statusInfo.status || 'Não informado'}\n\n${
+              url 
+                ? 'Há um documento do seu plano disponível para a assinatura. Clique em "Abrir Link" para visualizá-lo. Até a confirmação de assinatura, esta será a ultima consulta autorizada.'
+                : ''
+            }`,
+            buttons,
+            { cancelable: false }
+          );
+        });
+      }
+
+      // Gera e exibe o token após a confirmação do status
       const tokenGerado = gerarTokenAutorizacao(key, timestamp);
       setCurrentToken(tokenGerado);
       
@@ -71,12 +143,13 @@ export default function CarteirinhaScreen() {
             text: 'Copiar',
             onPress: () => {
               console.log('Token copiado:', tokenGerado);
+              // Lógica para copiar para área de transferência
             }
           },
           { text: 'OK', onPress: () => {} }
         ]
       );
-      
+
     } catch (error) {
       console.error('Erro ao gerar token:', error);
       

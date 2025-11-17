@@ -1,3 +1,3 @@
 export function getEverflowUrl(){
-    return 'https://084ca7863d9f.ngrok-free.app/extgate_pts';
+    return 'http://192.168.0.150:5002/extgate_pts';
 }

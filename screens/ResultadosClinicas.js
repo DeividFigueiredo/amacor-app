@@ -23,6 +23,11 @@ export default function ResultadosClinicas() {
     });
     Linking.openURL(url);
   };
+  const abrirNoWpp = (telefone) => {
+    console.log('telefone: ', telefone);
+    const url = `https://wa.me/${telefone.replace(/\D/g, '')}`;
+    Linking.openURL(url);
+    };
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
@@ -32,6 +37,13 @@ export default function ResultadosClinicas() {
       </View>
 
       <Text style={styles.endereco}>{item.endereco}</Text>
+
+      <TouchableOpacity
+        style={styles.botaoMapa}
+        onPress={() => abrirNoWpp(item.endereco)}
+      >
+        <Text style={styles.textoBotao}>📞 Agendar Consulta</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.botaoMapa}

@@ -57,7 +57,8 @@ export default function BuscarEspecialidades({ navigation }) {
     'Hematologia',
     'Alergologia',
     'Infectologia',
-    'Mastologia'
+    'Mastologia',
+    'Psicologia'
   ];
 
   const handleSearch = (text) => {
