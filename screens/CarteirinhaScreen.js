@@ -2,10 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gerarTokenAutorizacao } from '../mantis/crypto';
-import { buscarCard } from '../mantis/everflowConex';
+import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
 import { Linking } from 'react-native';
 import { retornarSuspenso } from '../mantis/everflowConex';
+import { getLocationAsync } from '../utils/utils'
+let BlurView = null;
+try {
+  // tenta usar expo-blur quando instalado
+  // se não estiver disponível, usamos o overlay simples como fallback
+  // eslint-disable-next-line global-require
+  BlurView = require('expo-blur').BlurView;
+} catch (e) {
+  BlurView = null;
+}
 
 export default function CarteirinhaScreen() {
   const [userData, setUserData] = useState(null);
@@ -13,6 +23,7 @@ export default function CarteirinhaScreen() {
   const [error, setError] = useState(null);
   const [currentToken, setCurrentToken] = useState(null);
   const [beneficiarioCancelado, setBeneficiarioCancelado] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -40,16 +51,63 @@ export default function CarteirinhaScreen() {
 
   // 🔥 FUNÇÃO PARA GERAR TOKEN
 const handleGenerateToken = async () => {
-    try {
+  setGenerating(true);
+  try {
       const timestamp = Date.now().toString();
       const cpf = userData.sCpfUSR;
+      const geoloc= await getLocationAsync();
       const dataNascimento = userData.dNascimento;
+      const nomeUsuario = userData.sNomeUSR;
+      const cardUsuario = userData.sCodigoUSR;
       console.log('Gerando token para CPF:', cpf, 'e Data de Nascimento:', dataNascimento);
       const token = gerarChave(cpf, dataNascimento);
+      console.log("localização: ",geoloc);
+
       const freshData = await buscarCard('/get_card_ext', cpf, token);
       const key = token;
 
       console.log('Dados atualizados:', freshData);
+
+      // Detectar suspensão em vários formatos/campos para garantir que o alerta seja mostrado
+      const detectSuspenso = (data) => {
+        if (!data) return false;
+        const candidates = [
+          data.suspenso,
+          data.status_plano && data.status_plano.suspenso,
+          data.suspensoUSR,
+          data.suspensoTIT,
+          data.suspenso_flag,
+        ];
+        let found = null;
+        for (const c of candidates) {
+          if (c !== undefined && c !== null && String(c).trim() !== '') {
+            found = c;
+            break;
+          }
+        }
+        if (found === null) return false;
+        // DEBUG: log the detected candidate to help troubleshooting
+        console.log('DETECT_SUSPENSO - candidate:', found, 'type:', typeof found);
+        if (typeof found === 'number') {
+          const res = found === 1;
+          console.log('DETECT_SUSPENSO - result:', res);
+          return res;
+        }
+        const s = String(found).trim().toLowerCase();
+        const res = s === '1' || s === 'true' || s === 'sim' || s === 's' || s === 'yes';
+        console.log('DETECT_SUSPENSO - normalized:', s, 'result:', res);
+        return res;
+      };
+
+      if (detectSuspenso(freshData)) {
+        const motivo = freshData.motivo_suspensao || freshData.motivo || freshData.motivo_suspensaoUSR || 'Não informado';
+        Alert.alert(
+          'Acesso Bloqueado',
+          `Seu acesso está suspenso. Motivo: ${motivo}\n\nEntre em contato com o suporte para regularizar sua situação.`,
+          [{ text: 'Entendi' }]
+        );
+        return;
+      }
 
       if (freshData) {
         setUserData(freshData);
@@ -65,16 +123,6 @@ const handleGenerateToken = async () => {
       // VERIFICAR SE EXISTE STATUS DO PLANO
       if (freshData.status_plano) {
         const statusInfo = freshData.status_plano;
-        
-        const suspenso = freshData.suspenso;
-      if (suspenso === 1) {
-        Alert.alert(
-          'Acesso Bloqueado',
-          `Seu acesso está suspenso. Motivo: ${freshData.motivo_suspensao || 'Não informado'}\n\nEntre em contato com o suporte para regularizar sua situação.`,
-          [{ text: 'Entendi' }]
-        );
-        return; // Impede a continuação
-      }
         
         // Função para abrir link e enviar contrato
         const handleOpenLink = async (url, contrato) => {
@@ -134,7 +182,15 @@ const handleGenerateToken = async () => {
       // Gera e exibe o token após a confirmação do status
       const tokenGerado = gerarTokenAutorizacao(key, timestamp);
       setCurrentToken(tokenGerado);
-      
+      // Envia token + timestamp + geoloc para a API (endpoint ajustável)
+      try {
+        
+        // Ajuste o endpoint conforme sua API espera (ex: '/autorizar_token')
+        await enviarAutorizacao('/autorizar_token', key, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario);
+      } catch (err) {
+        console.error('Falha ao enviar autorização:', err);
+      }
+
       Alert.alert(
         'Token Gerado',
         `Token: ${tokenGerado}\n\nUse este token para autorizar consultas.`,
@@ -174,6 +230,8 @@ const handleGenerateToken = async () => {
           'Não foi possível gerar o token. Verifique sua conexão e tente novamente.'
         );
       }
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -218,7 +276,8 @@ const handleGenerateToken = async () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={{flex:1}}>
+      <ScrollView style={styles.container}>
       <Text style={styles.title}>Carteirinha Digital</Text>
       
       {userData ? (
@@ -269,7 +328,24 @@ const handleGenerateToken = async () => {
       ) : (
         <Text>Dados não disponíveis</Text>
       )}
-    </ScrollView>
+      </ScrollView>
+
+      {generating && (
+        BlurView ? (
+          <BlurView intensity={80} tint="dark" style={styles.blurContainer}>
+            <View style={styles.overlayContent} pointerEvents="auto">
+              <ActivityIndicator size="large" color="#ffffff" />
+              <Text style={styles.overlayText}>Gerando token, aguarde...</Text>
+            </View>
+          </BlurView>
+        ) : (
+          <View style={styles.overlay} pointerEvents="auto">
+            <ActivityIndicator size="large" color="#ffffff" />
+            <Text style={styles.overlayText}>Gerando token, aguarde...</Text>
+          </View>
+        )
+      )}
+    </View>
   );
 }
 
@@ -437,5 +513,38 @@ const styles = StyleSheet.create({
     color: '#e65100',
     textAlign: 'center',
     fontSize: 14,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999,
+  },
+  overlayText: {
+    marginTop: 12,
+    color: '#fff',
+    fontSize: 16,
+  },
+  blurContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlayContent: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    padding: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

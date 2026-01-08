@@ -1,23 +1,26 @@
 import { decryptData } from "./crypto";
 import { getEverflowUrl } from "./config"
 import { criarChaveCripto } from "./crypto";
+import { encryptData } from "./crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export async function buscarCard(endpoint, cpf, token) {
     
     const url = getEverflowUrl();
-     
+    const key= criarChaveCripto (token);
+    const hashedCpf= encryptData (key, cpf); 
+        
     try {
         console.log('🔍 Iniciando busca de dados...');
         console.log('token:', token)
-        const response = await fetch(url + endpoint, {
-        method: 'POST', // muda para POST
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': ` ${token}` // opcional, mais seguro que enviar no corpo
-        },
-      body: JSON.stringify({ cpf }) // envia o cpf em JSON
-    });
+                const response = await fetch(url + endpoint, {
+                method: 'POST', // muda para POST
+                headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': ` ${token}` // opcional, mais seguro que enviar no corpo
+                },
+            body: JSON.stringify({ hashedCpf }) // envia cpf, timestamp e geoloc em JSON
+        });
     console.log('URL de requisição:', url + endpoint);
         if (!response.ok) {
             throw new Error('Erro na requisição: ' + response.status);
@@ -240,3 +243,83 @@ export async function retornarSuspenso(endpoint, contrato, token){
         throw error; // Propaga o erro para ser tratado acima
     }
 }
+
+// Envia token gerado + timestamp + geoloc para um endpoint de auditoria/registro
+export async function enviarAutorizacao(endpoint, token, tokenGerado,timestamp, geoloc, nomeUsuario, cardUsuario) {
+    const url = getEverflowUrl();
+    const key= criarChaveCripto (token);
+    const encryptedGeoloc= encryptData(key, geoloc)
+    const hashedNome= encryptData (key, nomeUsuario);
+    const hashedCard= encryptData (key, cardUsuario);
+
+    try {
+        const response = await fetch(url + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`
+            },
+            body: JSON.stringify({ tokenGerado, timestamp, encryptedGeoloc, hashedNome, hashedCard })
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro na requisição: ' + response.status);
+        }
+
+        const data = await response.json();
+        console.log('Resposta enviarAutorizacao:', data);
+        return data;
+    } catch (error) {
+        console.error('Erro em enviarAutorizacao:', error);
+        return null;
+    }
+}
+
+export async function EncontrarClinicasClose(latitude, longitude, endpoint, token){
+    try {
+    const fetchClinicasProximas = async 
+    const url= getEverflowUrl()
+      setLoadingClinicas(true);
+      setClinicas([]);
+      
+      // Enviar localização para sua API
+      const response = await fetch(url + endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `${token}`,
+        },
+        body: JSON.stringify({
+          latitude: latitude,
+          longitude: longitude,
+          raio: 10, // raio em km (ajuste conforme necessário)
+          limite: 20 // número máximo de resultados
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Verificar se a resposta tem o formato esperado
+      if (data && Array.isArray(data.clinicas)) {
+        setClinicas(data.clinicas);
+      } else if (Array.isArray(data)) {
+        setClinicas(data);
+      } else {
+        console.warn('Formato de resposta inesperado:', data);
+        Alert.alert('Atenção', 'Nenhuma clínica encontrada na sua região.');
+      }
+      
+    } catch (error) {
+      console.error('Erro ao buscar clínicas:', error);
+      Alert.alert(
+        'Erro de Conexão',
+        'Não foi possível conectar ao servidor. Verifique sua conexão.'
+      );
+    } finally {
+      setLoadingClinicas(false);
+    }
+  };

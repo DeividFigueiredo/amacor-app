@@ -10,6 +10,7 @@ import BoletosScreen from './screens/BoletosScreen';
 import BuscarEspecialidades from './screens/BuscarEspecialidadeScreen';
 import ResultadosClinicas from './screens/ResultadosClinicas';
 import BrowserScreen from './screens/BrowserScreen';
+import EncontrarClinicas from './screens/EncontrarClinicas'
 
 
 const Stack = createStackNavigator();
@@ -132,6 +133,16 @@ export default function App() {
             }}
           />
 
+          <Stack.Screen
+            name= "EncontrarClinicas"
+            component={EncontrarClinicas}
+            options={{
+              headerShown: true,
+              title: "Encontrar Clinicas",
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff", // Cor do texto e botão de voltar
+            }}
+          />
           <Stack.Screen
             name="BuscarEspecialidades"
             component={BuscarEspecialidades}

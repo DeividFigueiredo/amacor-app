@@ -227,14 +227,13 @@ export default function HomeScreen({ onLogout, navigation }) {
             <>
               <TouchableOpacity style={styles.menuItem}>
                 <Ionicons name="calendar" size={24} color="#2E76B8" />
-                <Text style={styles.menuText}>Agendar Consulta</Text>
+                <Text style={styles.menuText}>Solicitar Autorização</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem}>
-                <Ionicons name="location" size={24} color="#2E76B8" />
-                <Text style={styles.menuText}
-                onPress= {() => navigation.navigate('BuscarEspecialidade')}
-                >Encontrar Clínicas</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem}
+                        onPress= {() => navigation.navigate("EncontrarClinicas")}>
+                          <Ionicons name="location" size={24} color="#2E76B8" />
+                          <Text style={styles.menuText}>Encontrar clínicas</Text>
+                        </TouchableOpacity>
             </>
           ) : (
             <View style={styles.avisoContainer}>
