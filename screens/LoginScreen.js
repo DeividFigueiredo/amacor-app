@@ -134,14 +134,7 @@ export default function LoginScreen({ navigation, onLogin }) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.registerLink}
-          onPress={() => navigation.navigate('Register')}
-        >
-          <Text style={styles.registerText}>
-            Não tem uma conta? <Text style={styles.registerTextBold}>Cadastre-se</Text>
-          </Text>
-        </TouchableOpacity>
+        
       </View>
       <View>
         <Text  style={styles.EverFlow}>Powered By EverFlow</Text>

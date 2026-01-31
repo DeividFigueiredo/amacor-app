@@ -225,7 +225,8 @@ export default function HomeScreen({ onLogout, navigation }) {
           {/* 🎯 OCULTA ALGUMAS OPÇÕES SE ESTIVER CANCELADO */}
           {!userData?.sMotivoCancelamentoUSR ? (
             <>
-              <TouchableOpacity style={styles.menuItem}>
+              <TouchableOpacity style={styles.menuItem}
+                    onPress= {() => navigation.navigate("SolicitarAut")}>
                 <Ionicons name="calendar" size={24} color="#2E76B8" />
                 <Text style={styles.menuText}>Solicitar Autorização</Text>
               </TouchableOpacity>

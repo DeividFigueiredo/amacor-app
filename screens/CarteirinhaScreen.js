@@ -24,6 +24,8 @@ export default function CarteirinhaScreen() {
   const [currentToken, setCurrentToken] = useState(null);
   const [beneficiarioCancelado, setBeneficiarioCancelado] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [tokenExpirationTime, setTokenExpirationTime] = useState(null);
+  const [tokenExpired, setTokenExpired] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -48,6 +50,28 @@ export default function CarteirinhaScreen() {
 
     fetchUserData();
   }, []);
+
+  // 🔥 EFEITO PARA CONTROLAR EXPIRAÇÃO DO TOKEN (5 MINUTOS)
+  useEffect(() => {
+    if (!currentToken) return;
+
+    setTokenExpirationTime(300); // 5 minutos em segundos
+    setTokenExpired(false);
+
+    const interval = setInterval(() => {
+      setTokenExpirationTime((prevTime) => {
+        if (prevTime <= 1) {
+          setTokenExpired(true);
+          setCurrentToken(null);
+          clearInterval(interval);
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [currentToken]);
 
   // 🔥 FUNÇÃO PARA GERAR TOKEN
 const handleGenerateToken = async () => {
@@ -182,9 +206,11 @@ const handleGenerateToken = async () => {
       // Gera e exibe o token após a confirmação do status
       const tokenGerado = gerarTokenAutorizacao(key, timestamp);
       setCurrentToken(tokenGerado);
+      setTokenExpired(false);
+      setTokenExpirationTime(300); // Inicia o cronômetro com 5 minutos
       // Envia token + timestamp + geoloc para a API (endpoint ajustável)
       try {
-        
+        console.log("enviando autorização ao siccada")
         // Ajuste o endpoint conforme sua API espera (ex: '/autorizar_token')
         await enviarAutorizacao('/autorizar_token', key, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario);
       } catch (err) {
@@ -310,9 +336,32 @@ const handleGenerateToken = async () => {
           {/* 🔥 EXIBIR TOKEN ATUAL */}
           {currentToken && (
             <View style={styles.tokenContainer}>
-              <Text style={styles.tokenLabel}>Token atual:</Text>
+              {/* 🔥 OVERLAY DE PREENCHIMENTO REGRESSIVO */}
+              <View 
+                style={[
+                  styles.tokenDischargeOverlay,
+                  {
+                    right: 0,
+                    width: tokenExpirationTime !== null ? Math.max(0, 100 - (tokenExpirationTime / 300) * 100) + '%' : '0%',
+                  }
+                ]} 
+              />
+               <Text style={styles.tokenLabel}>Token atual:</Text>
               <Text style={styles.tokenValue}>{currentToken}</Text>
-              <Text style={styles.tokenHint}>Use este token para consultas autorizadas</Text>
+             <Text style={styles.tokenTimeLabel}>Expira em:</Text>
+              <Text style={styles.tokenTimeValue}>
+                {tokenExpirationTime !== null && tokenExpirationTime > 0 
+                  ? `${Math.floor(tokenExpirationTime / 60)}:${String(tokenExpirationTime % 60).padStart(2, '0')}` 
+                  : '⏰'}
+              </Text>
+            </View>
+          )}
+
+          {/* 🎯 AVISO DE TOKEN EXPIRADO */}
+          {tokenExpired && (
+            <View style={styles.tokenExpiradoContainer}>
+              <Text style={styles.tokenExpiradoText}>⏰ Token Expirado</Text>
+              <Text style={styles.tokenExpiradoDesc}>O seu token de autorização expirou. Gere um novo token para continuar.</Text>
             </View>
           )}
 
@@ -387,6 +436,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
     color: '#666',
+    marginTop: 16,
   },
   validity: {
     fontSize: 14,
@@ -413,23 +463,57 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderLeftWidth: 4,
     borderLeftColor: '#2E76B8',
+    marginBottom: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  tokenDischargeOverlay: {
+    position: 'absolute',
+    top: 0,
+    height: '150%',
+    backgroundColor: 'rgba(200, 200, 200, 0.5)',
+    zIndex: 0,
+  },
+  tokenTimeLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 0,
+    zIndex: 2,
+    position: 'relative',
+  },
+  tokenTimeValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2E76B8',
+    fontFamily: 'monospace',
+    marginBottom: 0,
+    zIndex: 2,
+    position: 'relative',
   },
   tokenLabel: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 5,
+    color: '#666',
+    marginBottom: 0,
+    zIndex: 2,
+    position: 'relative',
   },
   tokenValue: {
-    fontSize: 16,
+    fontSize: 28,
+    fontWeight: 'bold',
     fontFamily: 'monospace',
     color: '#2E76B8',
-    marginBottom: 5,
+    marginBottom: 0,
+    zIndex: 2,
+    position: 'relative',
   },
   tokenHint: {
     fontSize: 12,
     color: '#666',
     fontStyle: 'italic',
+    zIndex: 2,
+    position: 'relative',
   },
   loadingContainer: {
     flex: 1,
@@ -513,6 +597,26 @@ const styles = StyleSheet.create({
     color: '#e65100',
     textAlign: 'center',
     fontSize: 14,
+  },
+  // 🔥 ESTILOS PARA TOKEN EXPIRADO
+  tokenExpiradoContainer: {
+    backgroundColor: '#ffebee',
+    padding: 15,
+    borderRadius: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#e74c3c',
+    marginBottom: 20,
+  },
+  tokenExpiradoText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#e74c3c',
+    marginBottom: 8,
+  },
+  tokenExpiradoDesc: {
+    fontSize: 14,
+    color: '#c62828',
+    lineHeight: 20,
   },
   overlay: {
     position: 'absolute',
