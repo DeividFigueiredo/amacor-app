@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Keyboard, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Keyboard, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarClinicas } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
@@ -58,7 +58,8 @@ export default function BuscarEspecialidades({ navigation }) {
     'Alergologia',
     'Infectologia',
     'Mastologia',
-    'Psicologia'
+    'Psicologia',
+    'Nutrição',
   ];
 
   const handleSearch = (text) => {

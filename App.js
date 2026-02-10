@@ -11,8 +11,8 @@ import BuscarEspecialidades from './screens/BuscarEspecialidadeScreen';
 import ResultadosClinicas from './screens/ResultadosClinicas';
 import BrowserScreen from './screens/BrowserScreen';
 import EncontrarClinicas from './screens/EncontrarClinicas'
-import SolicitarAut from './screens/solicitarAut'
-
+import SoliciarAut from './screens/solicitarAut'
+import CarenciasScreen from './screens/CarenciasScreen';
 
 const Stack = createStackNavigator();
 
@@ -146,14 +146,27 @@ export default function App() {
           />
 
           <Stack.Screen
-            name= "solicitarAut"
-            component={SolicitarAut}
+            name="SolicitarAut"
+            component={SoliciarAut}
             options={{
-              headerShow: true,
+              headerShown: true,
+              title: "Solicitar Autorização",
               headerStyle: { backgroundColor: "#2E76B8" },
               headerTintColor: "#fff", // Cor do texto e botão de voltar
-            }}>
-          </Stack.Screen>
+            }}
+          />
+
+          <Stack.Screen
+            name="Carencias"
+            component={CarenciasScreen}
+            options={{
+              headerShown: true,
+              title: "Informações de Carências",
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff", // Cor do texto e botão de voltar
+            }}
+          />
+          
 
           <Stack.Screen
             name="BuscarEspecialidades"

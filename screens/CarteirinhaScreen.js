@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gerarTokenAutorizacao } from '../mantis/crypto';
 import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
@@ -264,46 +264,53 @@ const handleGenerateToken = async () => {
   // 🎯 TELA DE BENEFICIÁRIO CANCELADO
   if (beneficiarioCancelado) {
     return (
-      <View style={styles.container}>
-        <View style={styles.canceladoContainer}>
-          <Text style={styles.iconeCancelado}>❌</Text>
-          <Text style={styles.tituloCancelado}>Conta Cancelada</Text>
-          <Text style={styles.descricaoCancelado}>
-            Sua conta de beneficiário foi cancelada. Entre em contato com o suporte para mais informações.
-          </Text>
-          <TouchableOpacity 
-            style={styles.botaoSuporte}
-            onPress={() => {
-              Alert.alert('Suporte', 'Entre em contato com nossa central de atendimento.');
-            }}
-          >
-            <Text style={styles.botaoSuporteText}>Falar com Suporte</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={styles.safeContainer}>
+        <View style={styles.container}>
+          <View style={styles.canceladoContainer}>
+            <Text style={styles.iconeCancelado}>❌</Text>
+            <Text style={styles.tituloCancelado}>Conta Cancelada</Text>
+            <Text style={styles.descricaoCancelado}>
+              Sua conta de beneficiário foi cancelada. Entre em contato com o suporte para mais informações.
+            </Text>
+            <TouchableOpacity 
+              style={styles.botaoSuporte}
+              onPress={() => {
+                Alert.alert('Suporte', 'Entre em contato com nossa central de atendimento.');
+              }}
+            >
+              <Text style={styles.botaoSuporteText}>Falar com Suporte</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2E76B8" />
-        <Text style={styles.loadingText}>Carregando carteirinha...</Text>
-      </View>
+      <SafeAreaView style={styles.safeContainer}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2E76B8" />
+          <Text style={styles.loadingText}>Carregando carteirinha...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error && !userData) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
+      <SafeAreaView style={styles.safeContainer}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={{flex:1}}>
-      <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.safeContainer}>
+      <View style={{flex:1}}>
+        <ScrollView style={styles.container}>
       <Text style={styles.title}>Carteirinha Digital</Text>
       
       {userData ? (
@@ -377,28 +384,33 @@ const handleGenerateToken = async () => {
       ) : (
         <Text>Dados não disponíveis</Text>
       )}
-      </ScrollView>
+        </ScrollView>
 
-      {generating && (
-        BlurView ? (
-          <BlurView intensity={80} tint="dark" style={styles.blurContainer}>
-            <View style={styles.overlayContent} pointerEvents="auto">
+        {generating && (
+          BlurView ? (
+            <BlurView intensity={80} tint="dark" style={styles.blurContainer}>
+              <View style={styles.overlayContent} pointerEvents="auto">
+                <ActivityIndicator size="large" color="#ffffff" />
+                <Text style={styles.overlayText}>Gerando token, aguarde...</Text>
+              </View>
+            </BlurView>
+          ) : (
+            <View style={styles.overlay} pointerEvents="auto">
               <ActivityIndicator size="large" color="#ffffff" />
               <Text style={styles.overlayText}>Gerando token, aguarde...</Text>
             </View>
-          </BlurView>
-        ) : (
-          <View style={styles.overlay} pointerEvents="auto">
-            <ActivityIndicator size="large" color="#ffffff" />
-            <Text style={styles.overlayText}>Gerando token, aguarde...</Text>
-          </View>
-        )
-      )}
-    </View>
+          )
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
   container: {
     flex: 1,
     padding: 20,

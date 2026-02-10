@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   Linking, 
   StyleSheet,
-  Platform 
+  Platform,
+  SafeAreaView
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
@@ -26,6 +27,7 @@ export default function ResultadosClinicas() {
   const abrirNoWpp = (telefone) => {
     console.log('telefone: ', telefone);
     const url = `https://wa.me/${telefone.replace(/\D/g, '')}`;
+    console.log('URL do WhatsApp:', url);
     Linking.openURL(url);
     };
 
@@ -40,7 +42,7 @@ export default function ResultadosClinicas() {
 
       <TouchableOpacity
         style={styles.botaoMapa}
-        onPress={() => abrirNoWpp(item.endereco)}
+        onPress={() => abrirNoWpp(item.telefone)}
       >
         <Text style={styles.textoBotao}>📞 Agendar Consulta</Text>
       </TouchableOpacity>

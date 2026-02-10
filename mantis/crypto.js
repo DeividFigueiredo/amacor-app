@@ -149,3 +149,26 @@ export function encryptData (key, data){
         throw e;
     }
 }
+
+// Converte arquivo/imagem para Base64
+export async function converterParaBase64(uri) {
+    try {
+        // Se for um URI do React Native, precisa ler o arquivo
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                // Remove o prefixo 'data:image/jpeg;base64,' para pegar apenas o base64
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error('Erro ao converter para Base64:', e);
+        throw e;
+    }
+}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, SafeAreaView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarCard } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
@@ -82,11 +82,13 @@ export default function LoginScreen({ navigation, onLogin }) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.logoContainer}>
+    <SafeAreaView style={styles.safeContainer}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.logoContainer}>
         <View style={styles.logoPlaceholder}>
           <Ionicons name="medkit" size={60} color="#2E76B8" />
         </View>
@@ -136,19 +138,29 @@ export default function LoginScreen({ navigation, onLogin }) {
 
         
       </View>
-      <View>
-        <Text  style={styles.EverFlow}>Powered By EverFlow</Text>
-      </View>
-    </KeyboardAvoidingView>
+          <View>
+            <Text  style={styles.EverFlow}>Powered By Amacor Cloud</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 
 const styles = StyleSheet.create({
+  safeContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    padding: 20,
+    paddingHorizontal: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 20,
   },
   logoContainer: {
     alignItems: 'center',

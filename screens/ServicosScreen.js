@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BuscarEspecialidades } from './BuscarEspecialidadeScreen';
 import { EncontrarClinicas } from './EncontrarClinicas';
@@ -16,7 +16,8 @@ export default function ServicesScreen( { navigation } ) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Serviços</Text>
           
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem}
+          onPress= {() => navigation.navigate("SolicitarAut")}>
             <Ionicons name="calendar" size={24} color="#2E76B8" />
             <Text style={styles.menuText}>Solicitar autorização</Text>
            
