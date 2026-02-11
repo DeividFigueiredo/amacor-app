@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
-import { gerarChave, converterParaBase64 } from '../mantis/crypto';
+import { gerarChave, gerarTokenAutorizacao, converterParaBase64 } from '../mantis/crypto';
 
 export default function SoliciarAut({ navigation }) {
     const [loading, setLoading] = useState(false);
@@ -113,28 +113,25 @@ export default function SoliciarAut({ navigation }) {
             // Converter documento para base64
             const documentoBase64 = await converterParaBase64(documento.uri);
             console.log('✅ Documento convertido para Base64');
+            const token = gerarChave(userData.sCpfUSR, userData.dNascimento);
 
             // Preparar dados para envio
-            const timestamp = new Date().toISOString();
+            const timestamp = Date.now().toString();
             const geoloc = JSON.stringify({ lat: 0, lng: 0 }); // Você pode adicionar geolocalização real aqui
-            
-            const payload = {
-                nomeExame,
-                especialidade,
-                documento: documentoBase64,
-                nomeUsuario: userData.sNomeUSR,
-                cardUsuario: userData.sCodigoUSR || '',
-            };
+            const tokenGerado = gerarTokenAutorizacao(token, timestamp);
 
-            // Enviar para API
+            // Enviar para API (agora envia documento em Base64, nome do exame e especialidade)
             const resultado = await enviarAutorizacao(
                 '/solicitar-autorizacao', // endpoint - ajuste conforme sua API
-                userData.token,
-                'auth_token_gerado',
+                token,
+                tokenGerado,
                 timestamp,
                 geoloc,
                 userData.sNomeUSR,
-                userData.sCodigoUSR || ''
+                userData.sCodigoUSR || '',
+                documentoBase64,
+                nomeExame,
+                especialidade,
             );
 
             if (resultado && resultado.success) {

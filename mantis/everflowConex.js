@@ -4,6 +4,7 @@ import { criarChaveCripto } from "./crypto";
 import { encryptData } from "./crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 export async function buscarCard(endpoint, cpf, token) {
     
     const url = getEverflowUrl();
@@ -245,21 +246,54 @@ export async function retornarSuspenso(endpoint, contrato, token){
 }
 
 // Envia token gerado + timestamp + geoloc para um endpoint de auditoria/registro
-export async function enviarAutorizacao(endpoint, token, tokenGerado,timestamp, geoloc, nomeUsuario, cardUsuario) {
+export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario, documentoBase64 = null, nomeExame = null, especialidade = null) {
     const url = getEverflowUrl();
-    const key= criarChaveCripto (token);
-    const encryptedGeoloc= encryptData(key, geoloc)
-    const hashedNome= encryptData (key, nomeUsuario);
-    const hashedCard= encryptData (key, cardUsuario);
+    // Suporta chamada simplificada: enviarAutorizacao(endpoint, token, payload)
+    if (arguments.length === 3 && typeof tokenGerado === 'object' && tokenGerado !== null) {
+        const payload = tokenGerado;
+        try {
+            const response = await fetch(url + endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro na requisição: ' + response.status);
+            }
+
+            const data = await response.json();
+            console.log('Resposta enviarAutorizacao:', data);
+            return data;
+        } catch (error) {
+            console.error('Erro em enviarAutorizacao:', error);
+            return null;
+        }
+    }
+
+    const key = criarChaveCripto(token);
+    const encryptedGeoloc = encryptData(key, geoloc);
+    const hashedNome = encryptData(key, nomeUsuario);
+    const hashedCard = encryptData(key, cardUsuario);
+    const encryptedDocumento = documentoBase64 ? encryptData(key, documentoBase64) : null;
 
     try {
+        const bodyPayload = { tokenGerado, timestamp, encryptedGeoloc, hashedNome, hashedCard };
+
+        if (encryptedDocumento) bodyPayload.encryptedDocumento = encryptedDocumento;
+        if (nomeExame) bodyPayload.nomeExame = nomeExame;
+        if (especialidade) bodyPayload.especialidade = especialidade;
+
         const response = await fetch(url + endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `${token}`
             },
-            body: JSON.stringify({ tokenGerado, timestamp, encryptedGeoloc, hashedNome, hashedCard })
+            body: JSON.stringify(bodyPayload)
         });
 
         if (!response.ok) {
@@ -313,6 +347,44 @@ export async function EncontrarClinicasClose(latitude, longitude, endpoint, toke
         Alert.alert('Atenção', 'Nenhuma clínica encontrada na sua região.');
       }
       
+    } catch (error) {
+      console.error('Erro ao buscar clínicas:', error);
+      Alert.alert(
+        'Erro de Conexão',
+        'Não foi possível conectar ao servidor. Verifique sua conexão.'
+      );
+    } finally {
+      setLoadingClinicas(false);
+    }
+  };
+
+export async function postPedidoAutorizacao(endpoint, token, pedidoData){
+    const url = getEverFlowUrl();
+    try{
+        console.log('token: ', token)
+        const response = await fetch(url + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`
+            },
+            body: JSON.stringify(pedidoData)
+        })
+       if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Verificar se a resposta tem o formato esperado
+      if (data && Array.isArray(data.clinicas)) {
+        setClinicas(data.clinicas);
+      } else if (Array.isArray(data)) {
+        setClinicas(data);
+      } else {
+        console.warn('Formato de resposta inesperado:', data);
+        Alert.alert('Atenção', 'Nenhuma clínica encontrada na sua região.');
+      }
     } catch (error) {
       console.error('Erro ao buscar clínicas:', error);
       Alert.alert(

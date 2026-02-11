@@ -174,6 +174,8 @@ export default function BuscarEspecialidades({ navigation }) {
   }
 
   return (
+    
+    
     <View style={styles.container}>
       <Text style={styles.title}>Buscar Especialidades</Text>
       
@@ -387,3 +389,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+

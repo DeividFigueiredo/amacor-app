@@ -1,3 +1,3 @@
 export function getEverflowUrl(){
-    return 'https://www.amacor.cloud/extgate_pts';
+    return 'http://192.168.0.179:5002/extgate_pts';
 }
