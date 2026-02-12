@@ -2,18 +2,21 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text } from 'react-native'; // ✅ Adicione Text aqui
-import HomeScreen from './screens/home';
-import CarteirinhaScreen from './screens/CarteirinhaScreen';
-import PerfilScreen from './screens/Perfil';
-import SettingsScreen from './screens/SettingsScreen'; // ✅ Importe a SettingsScreen real
-import boletoScreen from './screens/BoletosScreen';
-import ServicesScreen from './screens/ServicosScreen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HomeScreen from '../screens/HomeScreen';
+import CarteirinhaScreen from '../screens/CarteirinhaScreen';
+import PerfilScreen from '../screens/PerfilScreen';
+import SettingsScreen from '../screens/SettingsScreen'; // ✅ Importe a SettingsScreen real
+import boletoScreen from '../screens/BoletosScreen';
+import ServicesScreen from '../screens/ServicosScreen';
 
 // ✅ Telas placeholder CORRETAS com React Native
 
 
 const Tab = createBottomTabNavigator();
 function MainTabs({ userData, onLogout }) {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -23,8 +26,8 @@ function MainTabs({ userData, onLogout }) {
           backgroundColor: 'white',
           borderTopWidth: 1,
           borderTopColor: '#ecf0f1',
-          height: 80,
-          paddingBottom: 10,
+          height: 70 + insets.bottom * 0.6,
+          paddingBottom: 6 + insets.bottom * 0.6,
           paddingTop: 10,
         },
         tabBarLabelStyle: {

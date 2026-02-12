@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
+import { buscarCard, postPedidoAutorizacao } from '../mantis/everflowConex';
 import { gerarChave, gerarTokenAutorizacao, converterParaBase64 } from '../mantis/crypto';
 
-export default function SoliciarAut({ navigation }) {
+export default function SolicitarAut({ navigation }) {
     const [loading, setLoading] = useState(false);
     const [documento, setDocumento] = useState(null);
     const [userData, setUserData] = useState(null);
@@ -113,25 +113,33 @@ export default function SoliciarAut({ navigation }) {
             // Converter documento para base64
             const documentoBase64 = await converterParaBase64(documento.uri);
             console.log('✅ Documento convertido para Base64');
+            console.log('📏 Tamanho do documento Base64:', documentoBase64.length, 'caracteres');
+            
             const token = gerarChave(userData.sCpfUSR, userData.dNascimento);
 
             // Preparar dados para envio
             const timestamp = Date.now().toString();
-            const geoloc = JSON.stringify({ lat: 0, lng: 0 }); // Você pode adicionar geolocalização real aqui
-            const tokenGerado = gerarTokenAutorizacao(token, timestamp);
+            const payload = {
+                sNomeUSR: userData.sNomeUSR,
+                sCodigoUSR: userData.sCodigoUSR || '',
+                nomeExame: nomeExame.trim(),
+                documentoBase64: documentoBase64,
+                timestamp: timestamp,
+            };
+            
+            console.log('📦 Payload preparado (sem documento):', {
+                sNomeUSR: payload.sNomeUSR,
+                sCodigoUSR: payload.sCodigoUSR,
+                nomeExame: payload.nomeExame,
+                timestamp: payload.timestamp,
+                documentoLength: documentoBase64.length
+            });
 
             // Enviar para API (agora envia documento em Base64, nome do exame e especialidade)
-            const resultado = await enviarAutorizacao(
-                '/solicitar-autorizacao', // endpoint - ajuste conforme sua API
+            const resultado = await postPedidoAutorizacao(
+                '/solicitar_autorizacao', // endpoint - ajuste conforme sua API
                 token,
-                tokenGerado,
-                timestamp,
-                geoloc,
-                userData.sNomeUSR,
-                userData.sCodigoUSR || '',
-                documentoBase64,
-                nomeExame,
-                especialidade,
+                payload,
             );
 
             if (resultado && resultado.success) {

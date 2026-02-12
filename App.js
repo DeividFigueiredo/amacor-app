@@ -3,16 +3,17 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
-import MainTabs from './MainTabs';
-import BoletosScreen from './screens/BoletosScreen';
-import BuscarEspecialidades from './screens/BuscarEspecialidadeScreen';
-import ResultadosClinicas from './screens/ResultadosClinicas';
-import BrowserScreen from './screens/BrowserScreen';
-import EncontrarClinicas from './screens/EncontrarClinicas'
-import SoliciarAut from './screens/solicitarAut'
-import CarenciasScreen from './screens/CarenciasScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+import MainTabs from './src/navigation/MainTabs';
+import BoletosScreen from './src/screens/BoletosScreen';
+import BuscarEspecialidades from './src/screens/BuscarEspecialidadeScreen';
+import ResultadosClinicas from './src/screens/ResultadosClinicas';
+import BrowserScreen from './src/screens/BrowserScreen';
+import EncontrarClinicas from './src/screens/EncontrarClinicas'
+import SolicitarAut from './src/screens/SolicitarAut'
+import CarenciasScreen from './src/screens/CarenciasScreen';
+import AcompanharAutorizacoesScreen from './src/screens/AcompanharAutorizacoesScreen';
 
 const Stack = createStackNavigator();
 
@@ -147,12 +148,23 @@ export default function App() {
 
           <Stack.Screen
             name="SolicitarAut"
-            component={SoliciarAut}
+            component={SolicitarAut}
             options={{
               headerShown: true,
               title: "Solicitar Autorização",
               headerStyle: { backgroundColor: "#2E76B8" },
               headerTintColor: "#fff", // Cor do texto e botão de voltar
+            }}
+          />
+
+          <Stack.Screen
+            name="AcompanharAutorizacoes"
+            component={AcompanharAutorizacoesScreen}
+            options={{
+              headerShown: true,
+              title: "Minhas Autorizações",
+              headerStyle: { backgroundColor: "#2E76B8" },
+              headerTintColor: "#fff",
             }}
           />
 

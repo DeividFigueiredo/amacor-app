@@ -1,15 +1,31 @@
 import { decryptData } from "./crypto";
-import { getEverflowUrl } from "./config"
+import { getEverflowUrl, getPubEverflowUrl } from "./config"
 import { criarChaveCripto } from "./crypto";
 import { encryptData } from "./crypto";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import * as Application from 'expo-application';
+import * as Device from 'expo-device';
+import appConfig from '../../app.json';
 
+function getVersaoApp() {
+    try {
+        const version = appConfig.expo.version || '1.0.0';
+        const buildNumber = Application.nativeBuildVersion || '1';
+        const platform = Platform.OS;
+        return `${platform}-${version}-${buildNumber}`;
+    } catch (error) {
+        console.error('Erro ao obter versão do app:', error);
+        return 'unknown';
+    }
+}
 
 export async function buscarCard(endpoint, cpf, token) {
     
     const url = getEverflowUrl();
     const key= criarChaveCripto (token);
     const hashedCpf= encryptData (key, cpf); 
+    const versaoApp = getVersaoApp();
         
     try {
         console.log('🔍 Iniciando busca de dados...');
@@ -18,7 +34,8 @@ export async function buscarCard(endpoint, cpf, token) {
                 method: 'POST', // muda para POST
                 headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': ` ${token}` // opcional, mais seguro que enviar no corpo
+                        'Authorization': ` ${token}`,
+                        'App-Version': versaoApp
                 },
             body: JSON.stringify({ hashedCpf }) // envia cpf, timestamp e geoloc em JSON
         });
@@ -138,6 +155,7 @@ async function destruirTodosDados() {
 export async function buscarPagamentos(endpoint, contrato, token) {
     const url = getEverflowUrl();
     const dados = AsyncStorage.getItem('userData');
+    const versaoApp = getVersaoApp();
 
     console.log("Dados encontrados:"+dados);
      try {
@@ -145,7 +163,8 @@ export async function buscarPagamentos(endpoint, contrato, token) {
         method: 'POST', // muda para POST
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': ` ${token}` // opcional, mais seguro que enviar no corpo
+            'Authorization': ` ${token}`,
+            'App-Version': versaoApp
         },
       body: JSON.stringify({ contrato }) // envia o cpf em JSON
     });
@@ -168,13 +187,15 @@ export async function buscarPagamentos(endpoint, contrato, token) {
 
 export async function buscarClinicas(endpoint, especialidade, token){
     const url= getEverflowUrl();
+    const versaoApp = getVersaoApp();
 
     try{
         const response = await fetch (url + endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': ` ${token}`
+                'Authorization': ` ${token}`,
+                'App-Version': versaoApp
             },
             body: JSON.stringify({especialidade})
         });
@@ -221,12 +242,14 @@ export async function buscarClinicas(endpoint, especialidade, token){
 
 export async function retornarSuspenso(endpoint, contrato, token){
     const url = getEverflowUrl();
+    const versaoApp = getVersaoApp();
     try {
         const response = await fetch(url + endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `${token}` // removi o espaço extra
+                'Authorization': `${token}`,
+                'App-Version': versaoApp
             },
             body: JSON.stringify({ contrato })
         })
@@ -246,17 +269,19 @@ export async function retornarSuspenso(endpoint, contrato, token){
 }
 
 // Envia token gerado + timestamp + geoloc para um endpoint de auditoria/registro
-export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario, documentoBase64 = null, nomeExame = null, especialidade = null) {
+export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario) {
     const url = getEverflowUrl();
     // Suporta chamada simplificada: enviarAutorizacao(endpoint, token, payload)
     if (arguments.length === 3 && typeof tokenGerado === 'object' && tokenGerado !== null) {
         const payload = tokenGerado;
+        const versaoApp = getVersaoApp();
         try {
             const response = await fetch(url + endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `${token}`
+                    'Authorization': `${token}`,
+                    'App-Version': versaoApp
                 },
                 body: JSON.stringify(payload)
             });
@@ -278,7 +303,7 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
     const encryptedGeoloc = encryptData(key, geoloc);
     const hashedNome = encryptData(key, nomeUsuario);
     const hashedCard = encryptData(key, cardUsuario);
-    const encryptedDocumento = documentoBase64 ? encryptData(key, documentoBase64) : null;
+    const versaoApp = getVersaoApp();
 
     try {
         const bodyPayload = { tokenGerado, timestamp, encryptedGeoloc, hashedNome, hashedCard };
@@ -291,7 +316,8 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `${token}`
+                'Authorization': `${token}`,
+                'App-Version': versaoApp
             },
             body: JSON.stringify(bodyPayload)
         });
@@ -359,39 +385,97 @@ export async function EncontrarClinicasClose(latitude, longitude, endpoint, toke
   };
 
 export async function postPedidoAutorizacao(endpoint, token, pedidoData){
-    const url = getEverFlowUrl();
-    try{
-        console.log('token: ', token)
+    const url = getEverflowUrl();
+    const versaoApp = getVersaoApp();
+    try {
+        console.log('📦 Payload recebido (chaves):', Object.keys(pedidoData));
+        console.log('📦 Payload completo:', {
+            ...pedidoData,
+            documentoBase64: pedidoData.documentoBase64 ? `[BASE64 com ${pedidoData.documentoBase64.length} caracteres]` : 'não incluído'
+        });
+        
+        const key = criarChaveCripto(token);
+        const hashedPedidoData = encryptData(key, JSON.stringify(pedidoData));
+        
+        console.log('🔐 Dados criptografados com sucesso');
+        console.log('🌐 URL completa:', url + endpoint);
+        console.log('🔑 Token:', token);
+        console.log('📱 Versão do App:', versaoApp);
+        
         const response = await fetch(url + endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `${token}`
+                'Authorization': `${token}`,
+                'App-Version': versaoApp
             },
-            body: JSON.stringify(pedidoData)
-        })
-       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
+            body: JSON.stringify({ hashedPedidoData })
+        });
 
-      const data = await response.json();
-      
-      // Verificar se a resposta tem o formato esperado
-      if (data && Array.isArray(data.clinicas)) {
-        setClinicas(data.clinicas);
-      } else if (Array.isArray(data)) {
-        setClinicas(data);
-      } else {
-        console.warn('Formato de resposta inesperado:', data);
-        Alert.alert('Atenção', 'Nenhuma clínica encontrada na sua região.');
-      }
+        console.log('📡 Status da resposta:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Erro da API:', errorText);
+            throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Resposta recebida:', data);
+        
+        return data;
+        
     } catch (error) {
-      console.error('Erro ao buscar clínicas:', error);
-      Alert.alert(
-        'Erro de Conexão',
-        'Não foi possível conectar ao servidor. Verifique sua conexão.'
-      );
-    } finally {
-      setLoadingClinicas(false);
+        console.error('🚨 Erro ao enviar autorização:', error);
+        throw error;
     }
-  };
+}
+
+export async function buscarAutorizacoes(endpoint, cpf, token) {
+    const url = getEverflowUrl();
+    const versaoApp = getVersaoApp();
+    try {
+        const key = criarChaveCripto(token);
+        const hashedCpf = encryptData(key, cpf);
+        
+        console.log('📋 Buscando autorizações...');
+        
+        const response = await fetch(url + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `${token}`,
+                'App-Version': versaoApp
+            },
+            body: JSON.stringify({ hashedCpf })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('📋 Autorizações recebidas');
+        
+        let decryptedData;
+        
+        if (Array.isArray(data) && data.length === 2) {
+            console.log('🔒 Modo criptografado detectado');
+            const encryptedData = data[0];
+            const iv = data[1];
+            const key = criarChaveCripto(token);
+            decryptedData = decryptData(key, encryptedData, iv);
+        } else if (typeof data === 'object') {
+            console.log('📄 Modo não criptografado detectado');
+            decryptedData = data;
+        } else {
+            throw new Error('Formato de resposta não reconhecido');
+        }
+
+        return decryptedData;
+        
+    } catch (error) {
+        console.error('🚨 Erro ao buscar autorizações:', error);
+        throw error;
+    }
+}

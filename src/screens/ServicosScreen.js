@@ -22,6 +22,14 @@ export default function ServicesScreen( { navigation } ) {
             <Text style={styles.menuText}>Solicitar autorização</Text>
            
           </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate("AcompanharAutorizacoes")}
+          >
+            <Ionicons name="list" size={24} color="#2E76B8" />
+            <Text style={styles.menuText}>Acompanhar autorizações</Text>
+          </TouchableOpacity>
   
           <TouchableOpacity style={styles.menuItem}
            onPress= {() => navigation.navigate("BuscarEspecialidades")}>
