@@ -33,8 +33,8 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
 
             // Buscar autorizações
             const resultado = await buscarAutorizacoes(
-                '/buscar-autorizacoes',
-                user.sCpfUSR,
+                '/buscar_autorizacoes',
+                user.sCodigoUSR,
                 token
             );
 
@@ -61,60 +61,99 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
     };
 
     const getStatusIcon = (status) => {
-        switch (status?.toLowerCase()) {
+        const statusLower = status?.toLowerCase();
+        switch (statusLower) {
+            case 'em analise':
+            case 'em ana':
+                return { name: 'time', color: '#4accff' };
             case 'aprovado':
             case 'autorizado':
+            case 'aprov':
                 return { name: 'checkmark-circle', color: '#4CAF50' };
-            case 'pendente':
-            case 'em análise':
+            case 'pendente':           
+            case 'pend':
                 return { name: 'time', color: '#FF9800' };
-            case 'negado':
+            case 'rejeitado':
             case 'recusado':
+            case 'rej':
+            case 'Rejeitado':
                 return { name: 'close-circle', color: '#F44336' };
             default:
                 return { name: 'help-circle', color: '#9E9E9E' };
         }
     };
 
-    const formatarData = (dataString) => {
+    const getStatusLabel = (status) => {
+        const statusLower = status?.toLowerCase();
+        switch (statusLower) {
+            case 'aprov':
+                return 'Aprovado';
+            case 'pend':
+                return 'Pendente';
+            case 'rej':
+                return 'Rejeitado';
+            case 'em analise':
+            case 'em ana':
+                return 'Em análise';
+            default:
+                return status || 'Pendente';
+        }
+    };
+
+    const formatarData = (dataString, timestamp) => {
         try {
-            if (!dataString) return 'Data não disponível';
-            
-            // Se já estiver no formato DD/MM/YYYY
-            if (dataString.includes('/')) {
-                return dataString;
+            // Priorizar data_hora_registro se existir
+            if (dataString && typeof dataString === 'string') {
+                // Se já estiver no formato DD/MM/YYYY HH:MM
+                if (dataString.includes('/')) {
+                    return dataString;
+                }
+                
+                // Se for formato YYYY-MM-DD HH:MM:SS (do banco)
+                if (dataString.includes('-') && dataString.includes(':')) {
+                    const [datePart, timePart] = dataString.split(' ');
+                    const [ano, mes, dia] = datePart.split('-');
+                    const [hora, min] = timePart.split(':');
+                    return `${dia}/${mes}/${ano} ${hora}:${min}`;
+                }
             }
             
-            // Se for ISO ou timestamp
-            const data = new Date(dataString);
-            if (isNaN(data.getTime())) return dataString;
+            // Se não tiver data_hora_registro, usar timestamp_solicitacao
+            if (timestamp) {
+                const data = new Date(parseInt(timestamp));
+                if (!isNaN(data.getTime())) {
+                    const dia = data.getDate().toString().padStart(2, '0');
+                    const mes = (data.getMonth() + 1).toString().padStart(2, '0');
+                    const ano = data.getFullYear();
+                    const hora = data.getHours().toString().padStart(2, '0');
+                    const min = data.getMinutes().toString().padStart(2, '0');
+                    return `${dia}/${mes}/${ano} ${hora}:${min}`;
+                }
+            }
             
-            const dia = data.getDate().toString().padStart(2, '0');
-            const mes = (data.getMonth() + 1).toString().padStart(2, '0');
-            const ano = data.getFullYear();
-            const hora = data.getHours().toString().padStart(2, '0');
-            const min = data.getMinutes().toString().padStart(2, '0');
-            
-            return `${dia}/${mes}/${ano} ${hora}:${min}`;
+            return 'Data não disponível';
         } catch (error) {
-            return dataString || 'Data não disponível';
+            return 'Data não disponível';
         }
     };
 
     const renderAutorizacao = ({ item }) => {
         const statusIcon = getStatusIcon(item.status);
+        const statusLabel = getStatusLabel(item.status);
         
         return (
             <TouchableOpacity 
                 style={styles.card}
                 onPress={() => {
-                    // Pode abrir um modal ou tela com mais detalhes
                     Alert.alert(
                         'Detalhes da Autorização',
-                        `Exame: ${item.nomeExame}\n` +
-                        `Status: ${item.status || 'Pendente'}\n` +
-                        `Data: ${formatarData(item.dataSolicitacao || item.timestamp)}\n` +
-                        `${item.observacao ? `Observação: ${item.observacao}` : ''}`
+                        `Beneficiário: ${item.nome_beneficiario || 'N/A'}\n` +
+                        `Carteira: ${item.card_beneficiario || 'N/A'}\n` +
+                        `Exame: ${item.nome_exame || 'Não especificado'}\n` +
+                        `Status: ${statusLabel}\n` +
+                        `Protocolo: #${item.id || 'N/A'}\n` +
+                        `Data: ${formatarData(item.data_hora_registro, item.timestamp_solicitacao)}\n` +
+                        `${item.observacao ? `\nObservação: ${item.observacao}` : ''}`
                     );
                 }}
             >
@@ -122,26 +161,34 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
                     <View style={styles.statusContainer}>
                         <Ionicons name={statusIcon.name} size={24} color={statusIcon.color} />
                         <Text style={[styles.status, { color: statusIcon.color }]}>
-                            {item.status || 'Pendente'}
+                            {statusLabel}
                         </Text>
                     </View>
                     <Text style={styles.data}>
-                        {formatarData(item.dataSolicitacao || item.timestamp)}
+                        {formatarData(item.data_hora_registro, item.timestamp_solicitacao)}
                     </Text>
                 </View>
 
                 <View style={styles.cardBody}>
                     <View style={styles.infoRow}>
-                        <Ionicons name="medical" size={18} color="#2E76B8" />
-                        <Text style={styles.nomeExame}>{item.nomeExame || 'Exame não especificado'}</Text>
+                        <Ionicons name="person" size={18} color="#2E76B8" />
+                        <Text style={styles.nomeBeneficiario}>{item.nome_beneficiario || 'Nome não disponível'}</Text>
                     </View>
 
-                    {item.protocolo && (
-                        <View style={styles.infoRow}>
-                            <Ionicons name="document-text" size={18} color="#666" />
-                            <Text style={styles.protocolo}>Protocolo: {item.protocolo}</Text>
-                        </View>
-                    )}
+                    <View style={styles.infoRow}>
+                        <Ionicons name="medical" size={18} color="#2E76B8" />
+                        <Text style={styles.nomeExame}>Exame: {item.nome_exame || 'Exame não especificado'}</Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Ionicons name="card" size={18} color="#666" />
+                        <Text style={styles.carteira}>Carteira: {item.card_beneficiario || 'N/A'}</Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Ionicons name="document-text" size={18} color="#666" />
+                        <Text style={styles.protocolo}>Protocolo: #{item.id || 'N/A'}</Text>
+                    </View>
 
                     {item.observacao && (
                         <View style={styles.observacaoContainer}>
@@ -176,17 +223,7 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Minhas Autorizações</Text>
-                <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
-                    <Ionicons 
-                        name="refresh" 
-                        size={24} 
-                        color="#2E76B8"
-                        style={refreshing && { opacity: 0.5 }}
-                    />
-                </TouchableOpacity>
-            </View>
+           
 
             <FlatList
                 data={autorizacoes}
@@ -286,6 +323,16 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#333',
         flex: 1,
+    },
+    nomeBeneficiario: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#2E76B8',
+        flex: 1,
+    },
+    carteira: {
+        fontSize: 14,
+        color: '#666',
     },
     protocolo: {
         fontSize: 14,

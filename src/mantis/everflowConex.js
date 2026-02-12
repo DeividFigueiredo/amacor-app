@@ -10,7 +10,7 @@ import appConfig from '../../app.json';
 
 function getVersaoApp() {
     try {
-        const version = appConfig.expo.version || '1.0.0';
+        const version = appConfig.expo.version;
         const buildNumber = Application.nativeBuildVersion || '1';
         const platform = Platform.OS;
         return `${platform}-${version}-${buildNumber}`;
@@ -308,10 +308,8 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
     try {
         const bodyPayload = { tokenGerado, timestamp, encryptedGeoloc, hashedNome, hashedCard };
 
-        if (encryptedDocumento) bodyPayload.encryptedDocumento = encryptedDocumento;
-        if (nomeExame) bodyPayload.nomeExame = nomeExame;
-        if (especialidade) bodyPayload.especialidade = especialidade;
-
+       
+        
         const response = await fetch(url + endpoint, {
             method: 'POST',
             headers: {
@@ -431,12 +429,12 @@ export async function postPedidoAutorizacao(endpoint, token, pedidoData){
     }
 }
 
-export async function buscarAutorizacoes(endpoint, cpf, token) {
+export async function buscarAutorizacoes(endpoint, card, token) {
     const url = getEverflowUrl();
     const versaoApp = getVersaoApp();
     try {
         const key = criarChaveCripto(token);
-        const hashedCpf = encryptData(key, cpf);
+        const hashedCard = encryptData(key, card);
         
         console.log('📋 Buscando autorizações...');
         
@@ -447,7 +445,7 @@ export async function buscarAutorizacoes(endpoint, cpf, token) {
                 'Authorization': `${token}`,
                 'App-Version': versaoApp
             },
-            body: JSON.stringify({ hashedCpf })
+            body: JSON.stringify({ hashedCard })
         });
 
         if (!response.ok) {
