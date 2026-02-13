@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, SafeAreaView, Image, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { gerarTokenAutorizacao } from '../mantis/crypto';
 import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
@@ -26,6 +26,8 @@ export default function CarteirinhaScreen() {
   const [generating, setGenerating] = useState(false);
   const [tokenExpirationTime, setTokenExpirationTime] = useState(null);
   const [tokenExpired, setTokenExpired] = useState(false);
+  const [isCardFlipped, setIsCardFlipped] = useState(false);
+  const flipAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -307,6 +309,36 @@ const handleGenerateToken = async () => {
     );
   }
 
+  const handleFlipCard = () => {
+    const toValue = isCardFlipped ? 0 : 180;
+    Animated.spring(flipAnim, {
+      toValue,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 80,
+    }).start(() => {
+      setIsCardFlipped(!isCardFlipped);
+    });
+  };
+
+  const frontInterpolate = flipAnim.interpolate({
+    inputRange: [0, 180],
+    outputRange: ['0deg', '180deg'],
+  });
+
+  const backInterpolate = flipAnim.interpolate({
+    inputRange: [0, 180],
+    outputRange: ['180deg', '360deg'],
+  });
+
+  const frontAnimatedStyle = {
+    transform: [{ perspective: 1000 }, { rotateY: frontInterpolate }],
+  };
+
+  const backAnimatedStyle = {
+    transform: [{ perspective: 1000 }, { rotateY: backInterpolate }],
+  };
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <View style={{flex:1}}>
@@ -315,28 +347,39 @@ const handleGenerateToken = async () => {
       
       {userData ? (
         <View>
-          <View style={styles.card}>
-            <Text style={styles.name}>{userData.sNomeUSR}</Text>
-            <Text style={styles.plan}>{userData.sNomePRD}</Text>
-            <Text style={styles.number}>Nº da matricula: {userData.sCodigoUSRTIT}</Text>
-            <Text style={styles.validity}>Ativo desde: {userData.dSituacao}</Text>
-            <Text style={styles.validity}>Válido até: {userData.validThru}</Text>
-            
-            {/* 🎯 INDICADOR DE STATUS (mantendo estilo da sua tela) */}
-            {userData.sMotivoCancelamentoUSR && (
-              <View style={styles.statusContainer}>
-                <Text style={styles.statusTextCancelado}>CONTA CANCELADA</Text>
-              </View>
-            )}
-          </View>
+          <TouchableOpacity activeOpacity={0.9} onPress={handleFlipCard}>
+            <View style={styles.card}>
+              <Animated.View style={[styles.cardFace, styles.cardFront, frontAnimatedStyle]}>
+                <Image
+                  source={require('../../assets/carteirinha_20260210_180951_0000.png')}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+              </Animated.View>
+              <Animated.View style={[styles.cardFace, styles.cardBack, backAnimatedStyle]}>
+                <Text style={styles.name}>{userData.sNomeUSR}</Text>
+                <Text style={styles.plan}>{userData.sNomePRD}</Text>
+                <Text style={styles.number}>Nº da matricula: {userData.sCodigoUSRTIT}</Text>
+                <Text style={styles.validity}>Ativo desde: {userData.dSituacao}</Text>
+                <Text style={styles.validity}>Válido até: {userData.validThru}</Text>
+
+                {/* 🎯 INDICADOR DE STATUS (mantendo estilo da sua tela) */}
+                {userData.sMotivoCancelamentoUSR && (
+                  <View style={styles.statusContainer}>
+                    <Text style={styles.statusTextCancelado}>CONTA CANCELADA</Text>
+                  </View>
+                )}
+              </Animated.View>
+            </View>
+          </TouchableOpacity>
 
           {/* 🔥 BOTÃO PARA GERAR TOKEN (só mostra se não estiver cancelado) */}
           {!userData.sMotivoCancelamentoUSR && (
             <TouchableOpacity 
-              style={styles.tokenButton}
-              onPress={handleGenerateToken}
+              /*style={styles.tokenButton}
+              onPress={handleGenerateToken}*/
             >
-              <Text style={styles.tokenButtonText}>Gerar Token de Autorização</Text>
+            
             </TouchableOpacity>
           )}
 
@@ -424,15 +467,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
+    height: 220,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     marginBottom: 20,
+    backgroundColor: 'transparent',
+  },
+  cardFace: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backfaceVisibility: 'hidden',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  cardFront: {
+    backgroundColor: '#ffffff',
+  },
+  cardBack: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
   },
   name: {
     fontSize: 18,
