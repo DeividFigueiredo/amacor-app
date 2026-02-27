@@ -208,7 +208,13 @@ export default function HomeScreen({ onLogout, navigation }) {
                 {userData ? userData.sNomePRD : 'Carregando...'}
               </Text>
               <Text style={styles.planNumber}>
-                Matricula: {userData ? userData.sCodigoUSRTIT : 'Carregando...'}
+                Matricula: {userData ? userData.sCodigoUSR : 'Carregando...'}
+              </Text>
+              <Text style={styles.planInfoLine}>
+                Responsável do plano: {userData ? (userData.sNomeResp || userData.sAssociado || userData.sNomeUSR) : 'Carregando...'}
+              </Text>
+              <Text style={styles.planInfoLine}>
+                Beneficiário: {userData ? userData.sNomeUSR : 'Carregando...'}
               </Text>
               {userData && userData.sMotivoCancelamentoUSR && (
                 <Text style={styles.motivoCancelamento}>
@@ -345,6 +351,11 @@ const styles = StyleSheet.create({
   },
   planNumber: {
     fontSize: 14,
+    color: '#7f8c8d',
+    marginTop: 4,
+  },
+  planInfoLine: {
+    fontSize: 13,
     color: '#7f8c8d',
     marginTop: 4,
   },

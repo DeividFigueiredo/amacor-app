@@ -27,7 +27,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-file-system"
+      "expo-file-system",
+      "expo-notifications"
     ],
     "extra": {
       "eas": {

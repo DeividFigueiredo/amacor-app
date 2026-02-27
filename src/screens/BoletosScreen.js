@@ -14,12 +14,17 @@ import { buscarPagamentos } from "../mantis/everflowConex";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gerarChave } from "../mantis/crypto";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import * as Print from "expo-print";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 
 export default function BoletosScreen() {
   const [boletos, setBoletos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [isContratoEmpresarial, setIsContratoEmpresarial] = useState(false);
 
   const carregarBoletos = async () => {
     try {
@@ -30,31 +35,54 @@ export default function BoletosScreen() {
       }
 
       const userData = JSON.parse(userDataString);
+      console.log('Dados do usuário carregados do AsyncStorage:', userData);
       const cpf = userData.sCpfUSR;
+      const codigoUsuario= userData.sCodigoUSR;
+      const codigoResponsavel= userData.sCodigoUSRTIT;
       console.log('CPF do usuário:', cpf);
+      console.log('Código do usuário:', codigoUsuario);
       const dataNascimento = userData.dNascimento;
       console.log('Data de Nascimento do usuário:', dataNascimento);
       const contrato = userData.sNumeroCNT;
+      const cpfCgcResponsavel = userData.sCpfCgcResp;
 
-      if (!cpf || !dataNascimento || !contrato) {
+      if (!cpf || !dataNascimento || !contrato || !codigoResponsavel) {
         throw new Error('Dados incompletos no AsyncStorage');
       }
 
+      const normalizarDocumento = (valor) => String(valor || '').replace(/\D/g, '');
+      const isCnpj = (valor) => {
+        const doc = normalizarDocumento(valor);
+        return doc.length === 14;
+      };
+
+      setIsContratoEmpresarial(isCnpj(cpfCgcResponsavel));
+
       const contrato2 = '?contrato=' + contrato + '&token=';
       const token = gerarChave(cpf, dataNascimento);
-      const boletosData = await buscarPagamentos('/gerar_boleto_ext', contrato, token);
+      const boletosData = await buscarPagamentos('/gerar_boleto_ext', codigoUsuario, codigoResponsavel, token);
       
       console.log('Dados recebidos da API:', boletosData);
-      
-      // Garantir que seja um array
-      if (Array.isArray(boletosData)) {
-        setBoletos(boletosData);
+
+      const normalizarBoleto = (boleto) => ({
+        contrato: boleto.sNumeroCNT || boleto.sCodigoDebitoAutomatico || boleto.sMatricula || '-',
+        nomeResponsavel: boleto.sAssociado || boleto.sNomeTIT || '-',
+        mensalidade: boleto.cValorMensalidade || boleto.cTotalAPagar || boleto.Saldo || '0.00',
+        vencimento: boleto.dVencimento || boleto.Vencimento || '-',
+        codigoBarras: boleto.sIPTE || boleto.sCodigoBarras || '-',
+        parcela: boleto.sParcela || boleto.Parcela || '-',
+      });
+
+      let boletosArray = [];
+      if (boletosData && Array.isArray(boletosData.boletos_2via)) {
+        boletosArray = boletosData.boletos_2via.map(normalizarBoleto);
+      } else if (Array.isArray(boletosData)) {
+        boletosArray = boletosData.map(normalizarBoleto);
       } else if (boletosData && typeof boletosData === 'object') {
-        // Se for um único objeto, transforma em array
-        setBoletos([boletosData]);
-      } else {
-        setBoletos([]);
+        boletosArray = [normalizarBoleto(boletosData)];
       }
+
+      setBoletos(boletosArray);
       
       setError(null);
     } catch (err) {
@@ -77,6 +105,10 @@ export default function BoletosScreen() {
 
   const formatarData = (dataString) => {
     if (!dataString) return '-';
+    if (dataString.includes('-')) {
+      const [ano, mes, dia] = dataString.split('-');
+      return `${dia}/${mes}/${ano}`;
+    }
     const [dia, mes, ano] = dataString.split('/');
     return `${dia}/${mes}/${ano}`;
   };
@@ -90,7 +122,12 @@ export default function BoletosScreen() {
     if (!dataVencimento) return null;
     
     try {
-      const [dia, mes, ano] = dataVencimento.split('/');
+      let dia; let mes; let ano;
+      if (dataVencimento.includes('-')) {
+        [ano, mes, dia] = dataVencimento.split('-');
+      } else {
+        [dia, mes, ano] = dataVencimento.split('/');
+      }
       const dataVenc = new Date(ano, mes - 1, dia);
       const hoje = new Date();
       
@@ -116,20 +153,96 @@ export default function BoletosScreen() {
     return { texto: 'Em aberto', cor: '#34C759', bg: '#E6F7EC' };
   };
 
-  const copiarParaAreaTransferencia = (texto) => {
-    // Implementar lógica de copiar para área de transferência
-    Alert.alert('Copiado!', 'Informação copiada para a área de transferência');
+  const copiarParaAreaTransferencia = async (texto) => {
+    if (!texto || texto === '-') {
+      Alert.alert('Nada para copiar', 'Informação indisponível');
+      return;
+    }
+
+    try {
+      await Clipboard.setStringAsync(String(texto));
+      Alert.alert('Copiado!', 'Informação copiada para a área de transferência');
+    } catch (error) {
+      console.error('Erro ao copiar para área de transferência:', error);
+      Alert.alert('Erro', 'Não foi possível copiar a informação');
+    }
   };
 
-  const handlePagarAgora = (boleto) => {
-    Alert.alert(
-      "Pagar Boleto",
-      `Deseja realizar o pagamento do boleto de ${formatarMoeda(boleto.mensalidade)}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Pagar", style: "default" }
-      ]
-    );
+  const gerarHtmlBoleto = (boleto) => {
+    const contrato = boleto.contrato || '-';
+    const responsavel = boleto.nomeResponsavel || '-';
+    const valor = formatarMoeda(boleto.mensalidade);
+    const vencimento = formatarData(boleto.vencimento);
+    const codigoBarras = boleto.codigoBarras || '-';
+    const parcela = boleto.parcela || '-';
+
+    return `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #1C1C1E; }
+            h1 { font-size: 20px; margin-bottom: 16px; }
+            .row { margin-bottom: 8px; }
+            .label { color: #8E8E93; font-size: 12px; }
+            .value { font-size: 14px; font-weight: 600; }
+            .box { background: #F2F2F7; padding: 12px; border-radius: 8px; margin-top: 12px; }
+            .barcode { font-size: 12px; word-break: break-all; }
+          </style>
+        </head>
+        <body>
+          <h1>Resumo do Boleto</h1>
+          <div class="row">
+            <div class="label">Contrato</div>
+            <div class="value">${contrato}</div>
+          </div>
+          <div class="row">
+            <div class="label">Responsável</div>
+            <div class="value">${responsavel}</div>
+          </div>
+          <div class="row">
+            <div class="label">Parcela</div>
+            <div class="value">${parcela}</div>
+          </div>
+          <div class="row">
+            <div class="label">Valor</div>
+            <div class="value">${valor}</div>
+          </div>
+          <div class="row">
+            <div class="label">Vencimento</div>
+            <div class="value">${vencimento}</div>
+          </div>
+          <div class="box">
+            <div class="label">Código de barras</div>
+            <div class="value barcode">${codigoBarras}</div>
+          </div>
+        </body>
+      </html>
+    `;
+  };
+
+  const handleSalvarPdf = async (boleto) => {
+    try {
+      const html = gerarHtmlBoleto(boleto);
+      const { uri } = await Print.printToFileAsync({ html });
+
+      const fileName = `boleto-${boleto.parcela || 'sem-parcela'}-${Date.now()}.pdf`;
+      const destino = `${FileSystem.documentDirectory}${fileName}`;
+
+      await FileSystem.copyAsync({ from: uri, to: destino });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(destino, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+        });
+      }
+
+      Alert.alert('PDF salvo', 'O arquivo foi salvo com sucesso.');
+    } catch (error) {
+      console.error('Erro ao salvar PDF:', error);
+      Alert.alert('Erro', 'Não foi possível gerar o PDF.');
+    }
   };
 
   const ordenarBoletos = (boletosArray) => {
@@ -183,6 +296,15 @@ export default function BoletosScreen() {
         </Text>
       </View>
 
+      {isContratoEmpresarial && (
+        <View style={styles.empresarialInfo}>
+          <Ionicons name="information-circle-outline" size={20} color="#0A7AFF" />
+          <Text style={styles.empresarialInfoText}>
+            Para contratos empresariais é necessário entrar em contato com o responsável financeiro do plano. Caso seja o responsável, busque o boleto pelo número de atendimento da operadora ou pelo site amacorplanosdesaude.com.br.
+          </Text>
+        </View>
+      )}
+
       {boletosOrdenados.length > 0 ? (
         <View style={styles.boletosList}>
           {boletosOrdenados.map((boleto, index) => {
@@ -218,7 +340,7 @@ export default function BoletosScreen() {
                     <View style={styles.infoItem}>
                       <Text style={styles.infoLabel}>Responsável</Text>
                       <Text style={styles.infoValue} numberOfLines={2}>
-                        {boleto.nome_responsavel || '-'}
+                        {boleto.nomeResponsavel || '-'}
                       </Text>
                     </View>
                   </View>
@@ -266,18 +388,17 @@ export default function BoletosScreen() {
 
                 {/* Ações */}
                 <View style={styles.actionsSection}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.pagarButton,
-                      diasRestantes < 0 && styles.pagarButtonVencido
-                    ]} 
-                    onPress={() => handlePagarAgora(boleto)}
-                  >
-                    <Ionicons name="card-outline" size={20} color="#FFFFFF" />
-                    <Text style={styles.pagarButtonText}>
-                      {diasRestantes < 0 ? 'Pagar com Multa' : 'Pagar Agora'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.codigoBarrasContainer}>
+                    <Text style={styles.codigoBarrasLabel}>Código de barras</Text>
+                    <View style={styles.codigoBarrasRow}>
+                      <Text style={styles.codigoBarrasValue} numberOfLines={1}>
+                        {boleto.codigoBarras || '-'}
+                      </Text>
+                      <TouchableOpacity onPress={() => copiarParaAreaTransferencia(boleto.codigoBarras)}>
+                        <Ionicons name="copy-outline" size={16} color="#8E8E93" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                   
                   <View style={styles.secondaryActions}>
                     <TouchableOpacity style={styles.secondaryButton}>
@@ -285,7 +406,7 @@ export default function BoletosScreen() {
                       <Text style={styles.secondaryButtonText}>Compartilhar</Text>
                     </TouchableOpacity>
                     
-                    <TouchableOpacity style={styles.secondaryButton}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => handleSalvarPdf(boleto)}>
                       <Ionicons name="download-outline" size={18} color="#007AFF" />
                       <Text style={styles.secondaryButtonText}>Salvar PDF</Text>
                     </TouchableOpacity>
@@ -339,6 +460,22 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     marginBottom: 16,
+  },
+  empresarialInfo: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#E8F1FF",
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  empresarialInfoText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#0A3D91",
+    lineHeight: 16,
   },
   title: {
     fontSize: 28,
@@ -509,6 +646,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     marginLeft: 4,
+  },
+  codigoBarrasContainer: {
+    backgroundColor: "#F2F2F7",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  codigoBarrasLabel: {
+    fontSize: 12,
+    color: "#8E8E93",
+    marginBottom: 6,
+  },
+  codigoBarrasRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  codigoBarrasValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1C1C1E",
+    flex: 1,
+    marginRight: 8,
   },
   additionalInfo: {
     marginTop: 16,

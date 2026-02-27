@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View, Text, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import MainTabs from './src/navigation/MainTabs';
@@ -14,19 +17,93 @@ import EncontrarClinicas from './src/screens/EncontrarClinicas'
 import SolicitarAut from './src/screens/SolicitarAut'
 import CarenciasScreen from './src/screens/CarenciasScreen';
 import AcompanharAutorizacoesScreen from './src/screens/AcompanharAutorizacoesScreen';
+import { registrarPushToken } from './src/mantis/everflowConex';
+import { gerarChave } from './src/mantis/crypto';
 
 const Stack = createStackNavigator();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  const registerForPushNotificationsAsync = async () => {
+    if (!Device.isDevice) {
+      Alert.alert('Notificações', 'Notificações push precisam de um dispositivo físico.');
+      return null;
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      return null;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#2E76B8',
+      });
+    }
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    return tokenData.data;
+  };
+
   // Verificar se o usuário já está logado ao iniciar o app
   useEffect(() => {
     console.log('App iniciando - verificando login...');
     checkLoginStatus();
   }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn || !userData) return;
+
+    const registerPush = async () => {
+      try {
+        const expoPushToken = await registerForPushNotificationsAsync();
+        if (!expoPushToken) return;
+
+        const storedPushToken = await AsyncStorage.getItem('pushToken');
+        if (storedPushToken === expoPushToken) return;
+
+        await AsyncStorage.setItem('pushToken', expoPushToken);
+
+        const cpf = userData.sCpfUSR;
+        const dataNascimento = userData.dNascimento;
+        if (!cpf || !dataNascimento) return;
+
+        const token = gerarChave(cpf, dataNascimento);
+        await registrarPushToken('/register_push_token', token, {
+          pushToken: expoPushToken,
+          codigoUsuario: userData.sCodigoUSR,
+          codigoTitular: userData.sCodigoUSRTIT,
+          plataforma: Platform.OS,
+        });
+      } catch (error) {
+        console.error('Erro ao registrar push token:', error);
+      }
+    };
+
+    registerPush();
+  }, [isLoggedIn, userData]);
 
   const checkLoginStatus = async () => {
     try {

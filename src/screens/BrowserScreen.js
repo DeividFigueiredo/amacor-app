@@ -11,6 +11,7 @@ export default function BrowserScreen({ navigation, route }) {
   const [currentUrl, setCurrentUrl] = useState(url);
   const [loading, setLoading] = useState(true);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   // Limpar dados quando o componente for desmontado
   useEffect(() => {
@@ -25,6 +26,18 @@ export default function BrowserScreen({ navigation, route }) {
     setCanGoForward(navState.canGoForward);
     setCurrentUrl(navState.url);
     setLoading(navState.loading);
+  };
+
+  const handleWebViewError = (event) => {
+    const { description, code } = event?.nativeEvent || {};
+    setLoadError(`Falha ao carregar a página (${code || 'erro'}): ${description || 'tente novamente.'}`);
+    setLoading(false);
+  };
+
+  const handleWebViewHttpError = (event) => {
+    const { statusCode, description } = event?.nativeEvent || {};
+    setLoadError(`Erro HTTP ${statusCode || ''}: ${description || 'tente novamente.'}`);
+    setLoading(false);
   };
 
   const goBack = () => {
@@ -250,8 +263,13 @@ export default function BrowserScreen({ navigation, route }) {
         domStorageEnabled={false} // Desabilitar localStorage para mais privacidade
         allowsBackForwardNavigationGestures={true}
         sharedCookiesEnabled={false} // Desabilitar cookies compartilhados
-        onLoadStart={() => setLoading(true)}
+        onLoadStart={() => {
+          setLoading(true);
+          setLoadError(null);
+        }}
         onLoadEnd={() => setLoading(false)}
+        onError={handleWebViewError}
+        onHttpError={handleWebViewHttpError}
         // Configurações adicionais de privacidade
         cacheEnabled={false}
         thirdPartyCookiesEnabled={false}
@@ -261,6 +279,13 @@ export default function BrowserScreen({ navigation, route }) {
           console.log('🛡️ Modo privacidade ativado');
         `}
       />
+
+      {loadError && (
+        <View style={styles.errorBanner}>
+          <Ionicons name="warning" size={18} color="#e74c3c" />
+          <Text style={styles.errorBannerText}>{loadError}</Text>
+        </View>
+      )}
 
       {/* Footer Navigation */}
       <View style={styles.footer}>
@@ -391,6 +416,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#ecf0f1',
     backgroundColor: '#f8f9fa',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fdecea',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f5c6cb',
+  },
+  errorBannerText: {
+    marginLeft: 8,
+    color: '#c0392b',
+    fontSize: 12,
+    flex: 1,
   },
   footerButton: {
     alignItems: 'center',

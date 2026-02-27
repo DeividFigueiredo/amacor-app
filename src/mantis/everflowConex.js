@@ -299,6 +299,7 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
         }
     }
 
+
     const key = criarChaveCripto(token);
     const encryptedGeoloc = encryptData(key, geoloc);
     const hashedNome = encryptData(key, nomeUsuario);
@@ -329,6 +330,37 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
         return data;
     } catch (error) {
         console.error('Erro em enviarAutorizacao:', error);
+        return null;
+    }
+}
+
+// 🔔 Registrar token de push do dispositivo
+export async function registrarPushToken(endpoint, token, payload) {
+    const url = getEverflowUrl();
+    const versaoApp = getVersaoApp();
+
+    try {
+        const response = await fetch(url + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': ` ${token}`,
+                'App-Version': versaoApp
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error('Erro na requisição: ' + response.status);
+        }
+
+        try {
+            return await response.json();
+        } catch (e) {
+            return true;
+        }
+    } catch (error) {
+        console.error('Erro ao registrar push token:', error);
         return null;
     }
 }

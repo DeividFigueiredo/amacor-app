@@ -24,10 +24,49 @@ export default function CarteirinhaScreen() {
   const [currentToken, setCurrentToken] = useState(null);
   const [beneficiarioCancelado, setBeneficiarioCancelado] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [silentRefreshing, setSilentRefreshing] = useState(false);
   const [tokenExpirationTime, setTokenExpirationTime] = useState(null);
   const [tokenExpired, setTokenExpired] = useState(false);
   const [isCardFlipped, setIsCardFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
+
+  const detectSuspenso = (data) => {
+    if (!data) return false;
+    const candidates = [
+      data.suspenso,
+      data.status_plano && data.status_plano.suspenso,
+      data.suspensoUSR,
+      data.suspensoTIT,
+      data.suspenso_flag,
+    ];
+    let found = null;
+    for (const c of candidates) {
+      if (c !== undefined && c !== null && String(c).trim() !== '') {
+        found = c;
+        break;
+      }
+    }
+    if (found === null) return false;
+    if (typeof found === 'number') return found === 1;
+    const s = String(found).trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'sim' || s === 's' || s === 'yes';
+  };
+
+  const normalizeSuspensoData = (data) => {
+    if (!data) return { data, isSuspenso: false };
+    const isSuspenso = detectSuspenso(data);
+    if (!isSuspenso) return { data, isSuspenso: false };
+    return { data: { ...data, validThru: 'Suspenso' }, isSuspenso: true };
+  };
+
+  const showSuspensoAlert = (data) => {
+    const motivo = data?.motivo_suspensao || data?.motivo || data?.motivo_suspensaoUSR || 'Não informado';
+    Alert.alert(
+      'Acesso Suspenso',
+      `Seu acesso está suspenso. Motivo: ${motivo}\n\nEntre em contato com o suporte para regularizar sua situação.`,
+      [{ text: 'Entendi' }]
+    );
+  };
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -38,7 +77,12 @@ export default function CarteirinhaScreen() {
         if (storedUserData) {
           console.log('Carteirinha - Dados encontrados no AsyncStorage');
           const data = JSON.parse(storedUserData);
-          setUserData(data);
+          const { data: normalizedData, isSuspenso } = normalizeSuspensoData(data);
+          setUserData(normalizedData);
+          if (isSuspenso) {
+            await AsyncStorage.setItem('userData', JSON.stringify(normalizedData));
+            showSuspensoAlert(normalizedData);
+          }
         } else {
           setError('Dados não encontrados. Faça login novamente.');
         }
@@ -94,52 +138,18 @@ const handleGenerateToken = async () => {
 
       console.log('Dados atualizados:', freshData);
 
-      // Detectar suspensão em vários formatos/campos para garantir que o alerta seja mostrado
-      const detectSuspenso = (data) => {
-        if (!data) return false;
-        const candidates = [
-          data.suspenso,
-          data.status_plano && data.status_plano.suspenso,
-          data.suspensoUSR,
-          data.suspensoTIT,
-          data.suspenso_flag,
-        ];
-        let found = null;
-        for (const c of candidates) {
-          if (c !== undefined && c !== null && String(c).trim() !== '') {
-            found = c;
-            break;
-          }
-        }
-        if (found === null) return false;
-        // DEBUG: log the detected candidate to help troubleshooting
-        console.log('DETECT_SUSPENSO - candidate:', found, 'type:', typeof found);
-        if (typeof found === 'number') {
-          const res = found === 1;
-          console.log('DETECT_SUSPENSO - result:', res);
-          return res;
-        }
-        const s = String(found).trim().toLowerCase();
-        const res = s === '1' || s === 'true' || s === 'sim' || s === 's' || s === 'yes';
-        console.log('DETECT_SUSPENSO - normalized:', s, 'result:', res);
-        return res;
-      };
+      const { data: normalizedData, isSuspenso } = normalizeSuspensoData(freshData);
 
-      if (detectSuspenso(freshData)) {
-        const motivo = freshData.motivo_suspensao || freshData.motivo || freshData.motivo_suspensaoUSR || 'Não informado';
-        Alert.alert(
-          'Acesso Bloqueado',
-          `Seu acesso está suspenso. Motivo: ${motivo}\n\nEntre em contato com o suporte para regularizar sua situação.`,
-          [{ text: 'Entendi' }]
-        );
-        return;
-      }
-
-      if (freshData) {
-        setUserData(freshData);
-        await AsyncStorage.setItem('userData', JSON.stringify(freshData));
+      if (normalizedData) {
+        setUserData(normalizedData);
+        await AsyncStorage.setItem('userData', JSON.stringify(normalizedData));
       } else {
         setError('Não foi possível carregar os dados');
+      }
+
+      if (isSuspenso) {
+        showSuspensoAlert(normalizedData);
+        return;
       }
       
       if (!freshData) {
@@ -321,6 +331,46 @@ const handleGenerateToken = async () => {
     });
   };
 
+  // 🔁 REVALIDAR CARTEIRINHA EM BACKGROUND (sem gerar token / sem UI)
+  const handleRevalidateCardSilent = async () => {
+    if (!userData) return;
+    if (silentRefreshing) return;
+    setSilentRefreshing(true);
+    try {
+      const cpf = userData.sCpfUSR;
+      const dataNascimento = userData.dNascimento;
+      const token = gerarChave(cpf, dataNascimento);
+
+      const freshData = await buscarCard('/get_card_ext', cpf, token);
+
+      const { data: normalizedData, isSuspenso } = normalizeSuspensoData(freshData);
+
+      if (normalizedData) {
+        setUserData(normalizedData);
+        await AsyncStorage.setItem('userData', JSON.stringify(normalizedData));
+      } else {
+        setError('Não foi possível carregar os dados');
+      }
+
+      if (isSuspenso) {
+        showSuspensoAlert(normalizedData);
+        return;
+      }
+
+      if (!freshData) return;
+
+      // Sem alertas ou fluxo de links no modo silencioso
+    } catch (error) {
+      console.error('Erro ao revalidar carteirinha:', error);
+      if (error.message.includes('Beneficiário cancelado')) {
+        const motivo = error.message.replace('Beneficiário cancelado: ', '');
+        setBeneficiarioCancelado(true);
+      }
+    } finally {
+      setSilentRefreshing(false);
+    }
+  };
+
   const frontInterpolate = flipAnim.interpolate({
     inputRange: [0, 180],
     outputRange: ['0deg', '180deg'],
@@ -347,7 +397,13 @@ const handleGenerateToken = async () => {
       
       {userData ? (
         <View>
-          <TouchableOpacity activeOpacity={0.9} onPress={handleFlipCard}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              handleFlipCard();
+              handleRevalidateCardSilent();
+            }}
+          >
             <View style={styles.card}>
               <Animated.View style={[styles.cardFace, styles.cardFront, frontAnimatedStyle]}>
                 <Image
@@ -359,9 +415,10 @@ const handleGenerateToken = async () => {
               <Animated.View style={[styles.cardFace, styles.cardBack, backAnimatedStyle]}>
                 <Text style={styles.name}>{userData.sNomeUSR}</Text>
                 <Text style={styles.plan}>{userData.sNomePRD}</Text>
-                <Text style={styles.number}>Nº da matricula: {userData.sCodigoUSRTIT}</Text>
+                <Text style={styles.number}>Nº da matricula: {userData.sCodigoUSR}</Text>
                 <Text style={styles.validity}>Ativo desde: {userData.dSituacao}</Text>
-                <Text style={styles.validity}>Válido até: {userData.validThru}</Text>
+                <Text style={styles.validity}>Responsável: {userData.sNomeResp || userData.sAssociado || userData.sNomeUSR}</Text>
+                <Text style={[styles.validity, styles.validitySpacing]}>Válido até: {userData.validThru}</Text>
 
                 {/* 🎯 INDICADOR DE STATUS (mantendo estilo da sua tela) */}
                 {userData.sMotivoCancelamentoUSR && (
@@ -518,6 +575,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
     color: '#666',
+  },
+  validitySpacing: {
+    marginTop: 8,
   },
   // 🔥 ESTILOS DO BOTÃO DE TOKEN
   tokenButton: {
