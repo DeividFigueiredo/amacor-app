@@ -413,17 +413,17 @@ const handleGenerateToken = async () => {
                 />
               </Animated.View>
               <Animated.View style={[styles.cardFace, styles.cardBack, backAnimatedStyle]}>
-                <Text style={styles.name}>{userData.sNomeUSR}</Text>
-                <Text style={styles.plan}>{userData.sNomePRD}</Text>
-                <Text style={styles.number}>Nº da matricula: {userData.sCodigoUSR}</Text>
-                <Text style={styles.validity}>Ativo desde: {userData.dSituacao}</Text>
-                <Text style={styles.validity}>Responsável: {userData.sNomeResp || userData.sAssociado || userData.sNomeUSR}</Text>
-                <Text style={[styles.validity, styles.validitySpacing]}>Válido até: {userData.validThru}</Text>
+                <Text style={styles.name} allowFontScaling={false}>{userData.sNomeUSR}</Text>
+                <Text style={styles.plan} allowFontScaling={false}>{userData.sNomePRD}</Text>
+                <Text style={styles.number} allowFontScaling={false}>Nº da matricula: {userData.sCodigoUSR}</Text>
+                <Text style={styles.validity} allowFontScaling={false}>Ativo desde: {userData.dSituacao}</Text>
+                <Text style={styles.validity} allowFontScaling={false}>Responsável: {userData.sNomeResp || userData.sAssociado || userData.sNomeUSR}</Text>
+                <Text style={[styles.validity, styles.validitySpacing]} allowFontScaling={false}>Válido até: {userData.validThru}</Text>
 
                 {/* 🎯 INDICADOR DE STATUS (mantendo estilo da sua tela) */}
                 {userData.sMotivoCancelamentoUSR && (
                   <View style={styles.statusContainer}>
-                    <Text style={styles.statusTextCancelado}>CONTA CANCELADA</Text>
+                    <Text style={styles.statusTextCancelado} allowFontScaling={false}>CONTA CANCELADA</Text>
                   </View>
                 )}
               </Animated.View>

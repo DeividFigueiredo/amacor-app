@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Act
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native'; // ✅ ADICIONE ESTE IMPORT
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { buscarCard } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
 
@@ -11,6 +12,7 @@ export default function HomeScreen({ onLogout, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [beneficiarioCancelado, setBeneficiarioCancelado] = useState(false);
+  const insets = useSafeAreaInsets();
   
   // ✅ HOOK PARA SABER SE A TELA ESTÁ EM FOCO
   const isFocused = useIsFocused();
@@ -172,7 +174,7 @@ export default function HomeScreen({ onLogout, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
-        <View style={styles.welcomeCard}>
+        <View style={[styles.welcomeCard, { marginTop: insets.top }]}>
           <Text style={styles.welcomeText}>
             Olá, {userData ? userData.sNomeUSR.split(' ')[0] : 'Usuário'}!
           </Text>

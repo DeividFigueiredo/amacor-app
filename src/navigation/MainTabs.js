@@ -16,6 +16,7 @@ import ServicesScreen from '../screens/ServicosScreen';
 const Tab = createBottomTabNavigator();
 function MainTabs({ userData, onLogout }) {
   const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 10);
 
   return (
     <Tab.Navigator
@@ -26,8 +27,8 @@ function MainTabs({ userData, onLogout }) {
           backgroundColor: 'white',
           borderTopWidth: 1,
           borderTopColor: '#ecf0f1',
-          height: 70 + insets.bottom * 0.6,
-          paddingBottom: 6 + insets.bottom * 0.6,
+          height: 70 + bottomInset,
+          paddingBottom: 6 + bottomInset,
           paddingTop: 10,
         },
         tabBarLabelStyle: {
