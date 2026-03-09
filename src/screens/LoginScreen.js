@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, SafeAreaView, ScrollView } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert, SafeAreaView, ScrollView, Animated, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { buscarCard } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
@@ -8,6 +8,39 @@ export default function LoginScreen({ navigation, onLogin }) {
   const [cpf, setCpf] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [loading, setLoading] = useState(false);
+  const logoTranslateY = useRef(new Animated.Value(Dimensions.get('window').height * 0.25)).current;
+  const logoScale = useRef(new Animated.Value(1.6)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(logoTranslateY, {
+          toValue: 0,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentTranslateY, {
+          toValue: 0,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, [contentOpacity, contentTranslateY, logoScale, logoTranslateY]);
 
   const handleLogin = async () => {
     if (!cpf || !dataNascimento) {
@@ -89,14 +122,36 @@ export default function LoginScreen({ navigation, onLogin }) {
       >
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.logoContainer}>
-        <View style={styles.logoPlaceholder}>
-          <Ionicons name="medkit" size={60} color="#2E76B8" />
-        </View>
-        <Text style={styles.title}>Amacor Saúde</Text>
-        <Text style={styles.subtitle}>Acesse sua conta</Text>
-        
+        <Animated.Image
+          source={require('../../assets/splash.png')}
+          style={[
+            styles.logoImage,
+            {
+              transform: [
+                { translateY: logoTranslateY },
+                { scale: logoScale },
+              ],
+            },
+          ]}
+          resizeMode="contain"
+        />
+        <Animated.View
+          style={{
+            opacity: contentOpacity,
+            transform: [{ translateY: contentTranslateY }],
+          }}
+        >
+          <Text style={styles.title}>Amacor Saúde</Text>
+          <Text style={styles.subtitle}>Acesse sua conta</Text>
+        </Animated.View>
       </View>
 
+      <Animated.View
+        style={{
+          opacity: contentOpacity,
+          transform: [{ translateY: contentTranslateY }],
+        }}
+      >
       <View style={styles.formContainer}>
         <View style={styles.inputContainer}>
           <Ionicons name="person" size={20} color="#95a5a6" style={styles.inputIcon} />
@@ -141,6 +196,7 @@ export default function LoginScreen({ navigation, onLogin }) {
           <View>
             <Text  style={styles.EverFlow}>Powered By Amacor Cloud</Text>
           </View>
+      </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -167,14 +223,10 @@ const styles = StyleSheet.create({
     marginTop: 60,
     marginBottom: 40,
   },
-  logoPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#e3f2fd',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+  logoImage: {
+    width: 160,
+    height: 160,
+    marginBottom: 10,
   },
   title: {
     fontSize: 28,

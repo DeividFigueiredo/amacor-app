@@ -237,9 +237,9 @@ export default function HomeScreen({ onLogout, navigation }) {
                 <Text style={styles.menuText}>Solicitar Autorização</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.menuItem}
-                        onPress= {() => navigation.navigate("EncontrarClinicas")}>
-                          <Ionicons name="location" size={24} color="#2E76B8" />
-                          <Text style={styles.menuText}>Encontrar clínicas</Text>
+                         onPress= {() => navigation.navigate("BuscarEspecialidades")}>
+                          <Ionicons name="git-compare" size={24} color="#2E76B8" />
+                          <Text style={styles.menuText}>Buscar por especialidade</Text>
                         </TouchableOpacity>
             </>
           ) : (

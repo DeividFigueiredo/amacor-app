@@ -37,11 +37,12 @@ export default function ServicesScreen( { navigation } ) {
             <Text style={styles.menuText}>Buscar por especialidade</Text>
           </TouchableOpacity>
   
-          <TouchableOpacity style={styles.menuItem}
+          {/* <TouchableOpacity style={styles.menuItem}
           onPress= {() => navigation.navigate("EncontrarClinicas")}>
             <Ionicons name="location" size={24} color="#2E76B8" />
             <Text style={styles.menuText}>Encontrar clínicas</Text>
           </TouchableOpacity>
+            */}
 
           <TouchableOpacity 
             style={styles.menuItem}

@@ -20,12 +20,37 @@ function getVersaoApp() {
     }
 }
 
+function getDeviceInfo() {
+    try {
+        return {
+            platform: Platform.OS,
+            deviceModel: Device.modelName || 'unknown',
+            deviceBrand: Device.brand || 'unknown',
+            osVersion: Device.osVersion || 'unknown',
+            appVersion: appConfig.expo.version || 'unknown',
+            buildNumber: Application.nativeBuildVersion || 'unknown'
+        };
+    } catch (error) {
+        console.error('Erro ao obter dados do dispositivo:', error);
+        return {
+            platform: Platform.OS,
+            deviceModel: 'unknown',
+            deviceBrand: 'unknown',
+            osVersion: 'unknown',
+            appVersion: 'unknown',
+            buildNumber: 'unknown'
+        };
+    }
+}
+
 export async function buscarCard(endpoint, cpf, token) {
     
     const url = getEverflowUrl();
     const key= criarChaveCripto (token);
     const hashedCpf= encryptData (key, cpf); 
     const versaoApp = getVersaoApp();
+    const deviceInfo = getDeviceInfo();
+    const hashedDeviceInfo = encryptData(key, JSON.stringify(deviceInfo));
         
     try {
         console.log('🔍 Iniciando busca de dados...');
@@ -37,7 +62,7 @@ export async function buscarCard(endpoint, cpf, token) {
                         'Authorization': ` ${token}`,
                         'App-Version': versaoApp
                 },
-            body: JSON.stringify({ hashedCpf }) // envia cpf, timestamp e geoloc em JSON
+            body: JSON.stringify({ hashedCpf, hashedDeviceInfo }) // envia cpf + dados do dispositivo em JSON
         });
     console.log('URL de requisição:', url + endpoint);
         if (!response.ok) {
@@ -269,7 +294,7 @@ export async function retornarSuspenso(endpoint, contrato, token){
 }
 
 // Envia token gerado + timestamp + geoloc para um endpoint de auditoria/registro
-export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario) {
+export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario, timestampLocal, timezoneOffsetMinutes) {
     const url = getEverflowUrl();
     // Suporta chamada simplificada: enviarAutorizacao(endpoint, token, payload)
     if (arguments.length === 3 && typeof tokenGerado === 'object' && tokenGerado !== null) {
@@ -307,7 +332,7 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
     const versaoApp = getVersaoApp();
 
     try {
-        const bodyPayload = { tokenGerado, timestamp, encryptedGeoloc, hashedNome, hashedCard };
+        const bodyPayload = { tokenGerado, timestamp, timestampLocal, timezoneOffsetMinutes, encryptedGeoloc, hashedNome, hashedCard };
 
        
         
@@ -340,6 +365,9 @@ export async function registrarPushToken(endpoint, token, payload) {
     const versaoApp = getVersaoApp();
 
     try {
+        const key = criarChaveCripto(token);
+        const hashedPushData = encryptData(key, JSON.stringify(payload));
+
         const response = await fetch(url + endpoint, {
             method: 'POST',
             headers: {
@@ -347,7 +375,7 @@ export async function registrarPushToken(endpoint, token, payload) {
                 'Authorization': ` ${token}`,
                 'App-Version': versaoApp
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ hashedPushData, token })
         });
 
         if (!response.ok) {

@@ -14,6 +14,18 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
+export function getTimestampPayload() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  const local = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  return {
+    timestamp: now.getTime().toString(),
+    timestampLocal: local,
+    timezoneOffsetMinutes: now.getTimezoneOffset(),
+  };
+}
+
 export async function getLocationAsync(setLocation, setErrorMsg, setLoading) {
   // Permite chamadas sem passar setters (tornando-os opcionais)
   const safeSetLocation = typeof setLocation === 'function' ? setLocation : () => {};

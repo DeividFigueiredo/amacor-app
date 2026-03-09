@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function SettingsScreen({ onLogout }) {
+export default function SettingsScreen({ onLogout, navigation }) {
   const handleLogout = async () => {
     Alert.alert(
       "Encerrar Sessão",
@@ -40,19 +40,19 @@ export default function SettingsScreen({ onLogout }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>App</Text>
         
-        <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="notifications" size={24} color="#2E76B8" />
-          <Text style={styles.menuText}>Notificações</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('PrivacidadeSeguranca')}
+        >
           <Ionicons name="shield" size={24} color="#2E76B8" />
           <Text style={styles.menuText}>Privacidade e Segurança</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('AjudaSuporte')}
+        >
           <Ionicons name="help-circle" size={24} color="#2E76B8" />
           <Text style={styles.menuText}>Ajuda e Suporte</Text>
         </TouchableOpacity>

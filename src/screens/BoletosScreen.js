@@ -14,9 +14,9 @@ import { buscarPagamentos } from "../mantis/everflowConex";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { gerarChave } from "../mantis/crypto";
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
+import { Asset } from "expo-asset";
 import * as Sharing from "expo-sharing";
 
 export default function BoletosScreen() {
@@ -71,6 +71,7 @@ export default function BoletosScreen() {
         vencimento: boleto.dVencimento || boleto.Vencimento || '-',
         codigoBarras: boleto.sIPTE || boleto.sCodigoBarras || '-',
         parcela: boleto.sParcela || boleto.Parcela || '-',
+        detalhes: boleto || {},
       });
 
       let boletosArray = [];
@@ -153,68 +154,190 @@ export default function BoletosScreen() {
     return { texto: 'Em aberto', cor: '#34C759', bg: '#E6F7EC' };
   };
 
-  const copiarParaAreaTransferencia = async (texto) => {
+  const copiarParaAreaTransferencia = (texto) => {
     if (!texto || texto === '-') {
       Alert.alert('Nada para copiar', 'Informação indisponível');
       return;
     }
 
-    try {
-      await Clipboard.setStringAsync(String(texto));
-      Alert.alert('Copiado!', 'Informação copiada para a área de transferência');
-    } catch (error) {
-      console.error('Erro ao copiar para área de transferência:', error);
-      Alert.alert('Erro', 'Não foi possível copiar a informação');
-    }
+    Alert.alert(
+      'Copiar manualmente',
+      'Toque e segure no texto para selecionar e copiar.'
+    );
   };
 
-  const gerarHtmlBoleto = (boleto) => {
-    const contrato = boleto.contrato || '-';
-    const responsavel = boleto.nomeResponsavel || '-';
-    const valor = formatarMoeda(boleto.mensalidade);
-    const vencimento = formatarData(boleto.vencimento);
-    const codigoBarras = boleto.codigoBarras || '-';
-    const parcela = boleto.parcela || '-';
+  const gerarHtmlBoleto = async (boleto) => {
+    const detalhes = boleto.detalhes || {};
+    const contrato = detalhes.sNumeroCNT || boleto.contrato || '-';
+    const responsavel = detalhes.sNomeTIT || boleto.nomeResponsavel || '-';
+    const valor = formatarMoeda(detalhes.cTotalAPagar || boleto.mensalidade);
+    const vencimento = formatarData(detalhes.dVencimento || boleto.vencimento);
+    const emissao = formatarData(detalhes.dEmissao || detalhes.dDocumento);
+    const parcela = detalhes.sParcela || boleto.parcela || '-';
+    const nossoNumero = detalhes.sNossoNumero || detalhes.sNossoNumero_Boleto || '-';
+    const documento = detalhes.sNumDoc || detalhes.sDocumento || '-';
+    const agencia = detalhes.sAgencia || '-';
+    const conta = detalhes.sContaCorrente || '-';
+    const carteira = detalhes.sCarteira || '-';
+    const banco = detalhes.sNomeBanco || '-';
+    const razaoSocial = detalhes.sRazaoSocial || '-';
+    const sacado = detalhes.sNomeTIT || detalhes.sAssociado || '-';
+    const cpfCgc = detalhes.sCgcCpf || '-';
+    const endereco1 = detalhes.sSacadoEnd1 || '-';
+    const endereco2 = detalhes.sSacadoEnd2 || '-';
+    const endereco3 = detalhes.sSacadoEnd3 || '-';
+    const instrucoes = detalhes.mInstrucoes || '-';
+    const ipte = detalhes.sIPTE || '-';
+    const codigoBarras = detalhes.sCodigoBarras || boleto.codigoBarras || '-';
+    const localPagamento = detalhes.sAvisoLocalPagamento1 || '-';
+
+    let logoBase64 = '';
+    try {
+      const logoAsset = Asset.fromModule(require('../../assets/icon.png'));
+      await logoAsset.downloadAsync();
+      logoBase64 = await FileSystem.readAsStringAsync(logoAsset.localUri || logoAsset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    } catch (error) {
+      console.warn('Erro ao carregar logo para PDF:', error);
+    }
+
+    let barcodeBase64 = '';
+    try {
+      const barcodeText = ipte && ipte !== '-' ? ipte : codigoBarras;
+      if (barcodeText && barcodeText !== '-') {
+        const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
+          barcodeText
+        )}&scale=3&height=12&includetext=false`;
+        const barcodeFile = `${FileSystem.cacheDirectory}barcode-${Date.now()}.png`;
+        await FileSystem.downloadAsync(barcodeUrl, barcodeFile);
+        barcodeBase64 = await FileSystem.readAsStringAsync(barcodeFile, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
+    } catch (error) {
+      console.warn('Erro ao gerar barcode para PDF:', error);
+    }
 
     return `
       <html>
         <head>
           <meta charset="utf-8" />
           <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #1C1C1E; }
-            h1 { font-size: 20px; margin-bottom: 16px; }
-            .row { margin-bottom: 8px; }
-            .label { color: #8E8E93; font-size: 12px; }
-            .value { font-size: 14px; font-weight: 600; }
-            .box { background: #F2F2F7; padding: 12px; border-radius: 8px; margin-top: 12px; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #1C1C1E; }
+            .title { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #1C1C1E; padding-bottom: 8px; margin-bottom: 12px; }
+            .bank-code { font-size: 20px; font-weight: 700; padding: 0 8px; border-left: 2px solid #1C1C1E; }
+            .linha { font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }
+            .logo { width: 44px; height: 44px; object-fit: contain; }
+            .section { margin-top: 10px; border: 1px solid #1C1C1E; }
+            .row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; border-top: 1px solid #1C1C1E; }
+            .row:first-child { border-top: none; }
+            .cell { padding: 6px 8px; border-right: 1px solid #1C1C1E; min-height: 48px; }
+            .cell:last-child { border-right: none; }
+            .label { font-size: 10px; color: #4B4B4B; text-transform: uppercase; }
+            .value { font-size: 12px; font-weight: 600; margin-top: 4px; }
+            .row-2 { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #1C1C1E; }
+            .row-1 { display: grid; grid-template-columns: 1fr; border-top: 1px solid #1C1C1E; }
+            .barcode-box { margin-top: 12px; padding: 8px; border: 1px solid #1C1C1E; text-align: center; }
+            .barcode-box .label { text-align: left; display: block; }
             .barcode { font-size: 12px; word-break: break-all; }
+            .barcode-img { width: 384px; height: 72px; object-fit: contain; display: block; margin: 6px auto 0; }
+            .small { font-size: 11px; }
           </style>
         </head>
         <body>
-          <h1>Resumo do Boleto</h1>
-          <div class="row">
-            <div class="label">Contrato</div>
-            <div class="value">${contrato}</div>
+          <div class="title">
+            ${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" />` : ''}
+            <div class="bank-code">${detalhes.sCodigoBancoCompleto || detalhes.sCodigoBanco || '—'}</div>
+            <div class="linha">${razaoSocial}</div>
           </div>
-          <div class="row">
-            <div class="label">Responsável</div>
-            <div class="value">${responsavel}</div>
+
+          <div class="section">
+            <div class="row">
+              <div class="cell">
+                <div class="label">Beneficiário</div>
+                <div class="value">${razaoSocial}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Agência / Conta</div>
+                <div class="value">${agencia} / ${conta}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Vencimento</div>
+                <div class="value">${vencimento}</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="cell">
+                <div class="label">Sacado</div>
+                <div class="value">${sacado}</div>
+              </div>
+              <div class="cell">
+                <div class="label">CPF/CNPJ</div>
+                <div class="value">${cpfCgc}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Valor do documento</div>
+                <div class="value">${valor}</div>
+              </div>
+            </div>
+            <div class="row-2">
+              <div class="cell">
+                <div class="label">Endereço</div>
+                <div class="value">${endereco1}</div>
+                <div class="value small">${endereco2}</div>
+              </div>
+              <div class="cell">
+                <div class="label">CEP</div>
+                <div class="value">${endereco3}</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="cell">
+                <div class="label">Nosso número</div>
+                <div class="value">${nossoNumero}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Número do documento</div>
+                <div class="value">${documento}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Emissão</div>
+                <div class="value">${emissao}</div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="cell">
+                <div class="label">Carteira</div>
+                <div class="value">${carteira}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Contrato</div>
+                <div class="value">${contrato}</div>
+              </div>
+              <div class="cell">
+                <div class="label">Parcela</div>
+                <div class="value">${parcela}</div>
+              </div>
+            </div>
+            <div class="row-1">
+              <div class="cell">
+                <div class="label">Local de pagamento</div>
+                <div class="value">${localPagamento}</div>
+              </div>
+            </div>
+            <div class="row-1">
+              <div class="cell">
+                <div class="label">Instruções</div>
+                <div class="value">${instrucoes}</div>
+              </div>
+            </div>
           </div>
-          <div class="row">
-            <div class="label">Parcela</div>
-            <div class="value">${parcela}</div>
-          </div>
-          <div class="row">
-            <div class="label">Valor</div>
-            <div class="value">${valor}</div>
-          </div>
-          <div class="row">
-            <div class="label">Vencimento</div>
-            <div class="value">${vencimento}</div>
-          </div>
-          <div class="box">
+
+          <div class="barcode-box">
             <div class="label">Código de barras</div>
-            <div class="value barcode">${codigoBarras}</div>
+            ${barcodeBase64 ? `<img class="barcode-img" src="data:image/png;base64,${barcodeBase64}" />` : ''}
+            <div class="value barcode">${ipte}</div>
           </div>
         </body>
       </html>
@@ -223,7 +346,7 @@ export default function BoletosScreen() {
 
   const handleSalvarPdf = async (boleto) => {
     try {
-      const html = gerarHtmlBoleto(boleto);
+      const html = await gerarHtmlBoleto(boleto);
       const { uri } = await Print.printToFileAsync({ html });
 
       const fileName = `boleto-${boleto.parcela || 'sem-parcela'}-${Date.now()}.pdf`;
@@ -330,7 +453,7 @@ export default function BoletosScreen() {
                     <View style={styles.infoItem}>
                       <Text style={styles.infoLabel}>Contrato</Text>
                       <View style={styles.infoValueContainer}>
-                        <Text style={styles.infoValue}>{boleto.contrato || '-'}</Text>
+                        <Text style={styles.infoValue} selectable>{boleto.contrato || '-'}</Text>
                         <TouchableOpacity onPress={() => copiarParaAreaTransferencia(boleto.contrato)}>
                           <Ionicons name="copy-outline" size={16} color="#8E8E93" />
                         </TouchableOpacity>
@@ -391,7 +514,7 @@ export default function BoletosScreen() {
                   <View style={styles.codigoBarrasContainer}>
                     <Text style={styles.codigoBarrasLabel}>Código de barras</Text>
                     <View style={styles.codigoBarrasRow}>
-                      <Text style={styles.codigoBarrasValue} numberOfLines={1}>
+                      <Text style={styles.codigoBarrasValue} selectable>
                         {boleto.codigoBarras || '-'}
                       </Text>
                       <TouchableOpacity onPress={() => copiarParaAreaTransferencia(boleto.codigoBarras)}>
@@ -401,7 +524,7 @@ export default function BoletosScreen() {
                   </View>
                   
                   <View style={styles.secondaryActions}>
-                    <TouchableOpacity style={styles.secondaryButton}>
+                    <TouchableOpacity style={styles.secondaryButton} onPress={() => handleSalvarPdf(boleto)}>
                       <Ionicons name="share-outline" size={18} color="#007AFF" />
                       <Text style={styles.secondaryButtonText}>Compartilhar</Text>
                     </TouchableOpacity>
@@ -669,6 +792,8 @@ const styles = StyleSheet.create({
     color: "#1C1C1E",
     flex: 1,
     marginRight: 8,
+    flexWrap: "wrap",
+    flexShrink: 1,
   },
   additionalInfo: {
     marginTop: 16,

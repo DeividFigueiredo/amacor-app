@@ -6,6 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { buscarCard, postPedidoAutorizacao } from '../mantis/everflowConex';
 import { gerarChave, gerarTokenAutorizacao, converterParaBase64 } from '../mantis/crypto';
+import { getTimestampPayload } from '../utils/utils';
 
 export default function SolicitarAut({ navigation }) {
     const [loading, setLoading] = useState(false);
@@ -118,13 +119,15 @@ export default function SolicitarAut({ navigation }) {
             const token = gerarChave(userData.sCpfUSR, userData.dNascimento);
 
             // Preparar dados para envio
-            const timestamp = Date.now().toString();
+            const { timestamp, timestampLocal, timezoneOffsetMinutes } = getTimestampPayload();
             const payload = {
                 sNomeUSR: userData.sNomeUSR,
                 sCodigoUSR: userData.sCodigoUSR || '',
                 nomeExame: nomeExame.trim(),
                 documentoBase64: documentoBase64,
                 timestamp: timestamp,
+                timestampLocal: timestampLocal,
+                timezoneOffsetMinutes: timezoneOffsetMinutes,
             };
             
             console.log('📦 Payload preparado (sem documento):', {

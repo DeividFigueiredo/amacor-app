@@ -6,7 +6,7 @@ import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
 import { Linking } from 'react-native';
 import { retornarSuspenso } from '../mantis/everflowConex';
-import { getLocationAsync } from '../utils/utils'
+import { getLocationAsync, getTimestampPayload } from '../utils/utils'
 let BlurView = null;
 try {
   // tenta usar expo-blur quando instalado
@@ -123,7 +123,7 @@ export default function CarteirinhaScreen() {
 const handleGenerateToken = async () => {
   setGenerating(true);
   try {
-      const timestamp = Date.now().toString();
+      const { timestamp, timestampLocal, timezoneOffsetMinutes } = getTimestampPayload();
       const cpf = userData.sCpfUSR;
       const geoloc= await getLocationAsync();
       const dataNascimento = userData.dNascimento;
@@ -224,7 +224,7 @@ const handleGenerateToken = async () => {
       try {
         console.log("enviando autorização ao siccada")
         // Ajuste o endpoint conforme sua API espera (ex: '/autorizar_token')
-        await enviarAutorizacao('/autorizar_token', key, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario);
+        await enviarAutorizacao('/autorizar_token', key, tokenGerado, timestamp, geoloc, nomeUsuario, cardUsuario, timestampLocal, timezoneOffsetMinutes);
       } catch (err) {
         console.error('Falha ao enviar autorização:', err);
       }
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
-    height: 220,
+    minHeight: 220,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -550,6 +550,7 @@ const styles = StyleSheet.create({
   cardBack: {
     backgroundColor: '#ffffff',
     padding: 20,
+    justifyContent: 'center',
   },
   cardImage: {
     width: '100%',
@@ -559,22 +560,30 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   plan: {
     fontSize: 16,
     marginBottom: 8,
     color: '#2E76B8',
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   number: {
     fontSize: 14,
     marginBottom: 8,
     color: '#666',
     marginTop: 16,
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   validity: {
     fontSize: 14,
     marginBottom: 8,
     color: '#666',
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   validitySpacing: {
     marginTop: 8,
