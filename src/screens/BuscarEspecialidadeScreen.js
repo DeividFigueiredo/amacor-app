@@ -60,6 +60,11 @@ export default function BuscarEspecialidades({ navigation }) {
     'Mastologia',
     'Psicologia',
     'Nutrição',
+    'Oncologia',
+    'Fonoaudiologia',
+    'Fisioterapia',
+    'Angiologia',
+    'Obstetrícia',
   ];
 
   const handleSearch = (text) => {
@@ -109,7 +114,8 @@ export default function BuscarEspecialidades({ navigation }) {
       } else {
         Alert.alert(
           'Nenhuma clínica encontrada',
-          `Não encontramos clínicas com a especialidade: ${specialty}`,
+          `Não encontramos clínicas com a especialidade: ${specialty}\n\n Solicite a especialidade na Operadora de saúde`,
+         
           [{ text: 'OK' }]
         );
       }

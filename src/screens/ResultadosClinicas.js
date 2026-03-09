@@ -7,7 +7,8 @@ import {
   Linking, 
   StyleSheet,
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  Alert
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 
@@ -24,18 +25,46 @@ export default function ResultadosClinicas() {
     });
     Linking.openURL(url);
   };
-  const abrirNoWpp = (telefone) => {
-    console.log('telefone: ', telefone);
-    const url = `https://wa.me/${telefone.replace(/\D/g, '')}`;
-    console.log('URL do WhatsApp:', url);
+  const normalizarTelefoneWhatsapp = (telefone) => {
+    const numeros = String(telefone || '').replace(/\D/g, '');
+
+    if (numeros.length === 10 || numeros.length === 11) {
+      return `55${numeros}`;
+    }
+
+    if (numeros.length === 12 || numeros.length === 13) {
+      return numeros;
+    }
+
+    return null;
+  };
+
+  const abrirNoWpp = async (telefone) => {
+    const numeroWhatsapp = normalizarTelefoneWhatsapp(telefone);
+
+    if (!numeroWhatsapp) {
+      Alert.alert(
+        'WhatsApp indisponível',
+        'Esta clínica não possui número no padrão do WhatsApp. Use o telefone exibido para contato manual.'
+      );
+      return;
+    }
+
+    const url = `https://wa.me/${numeroWhatsapp}`;
     Linking.openURL(url);
-    };
+  };
 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.nome}>{item.nome}</Text>
-        <Text style={styles.telefone}>{item.telefone}</Text>
+        <View style={styles.telefoneWrapper}>
+          <View style={styles.telefoneRow}>
+            <Text style={styles.telefone} selectable>
+              {item.telefone}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <Text style={styles.endereco}>{item.endereco}</Text>
@@ -116,9 +145,25 @@ const styles = StyleSheet.create({
     color: '#2E76B8',
   },
   telefone: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 2,
+    fontSize: 17,
+    color: '#2c3e50',
+    marginTop: 0,
+    fontWeight: '600',
+  },
+  telefoneWrapper: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#d9e2ec',
+    borderRadius: 10,
+    backgroundColor: '#f5f9ff',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  telefoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
   },
   endereco: {
     fontSize: 15,

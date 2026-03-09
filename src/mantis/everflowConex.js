@@ -200,8 +200,21 @@ export async function buscarPagamentos(endpoint, contrato, token) {
         }
 
         const data = await response.json();
-        console.log('Dados recebidos da API:', data);
-        return data;
+        let decryptedData;
+        if (Array.isArray(data) && data.length === 2) {
+            console.log('🔒 Modo criptografado detectado');
+            const encryptedData = data[0];
+            const iv = data[1];
+            const key = criarChaveCripto(token);
+            decryptedData = decryptData(key, encryptedData, iv);
+        } else if (typeof data === 'object') {
+            console.log('📄 Modo não criptografado detectado');
+            decryptedData = data;
+        } else {
+            throw new Error('Formato de resposta não reconhecido');
+        }
+        console.log('🔓 Dados descriptografados:', JSON.stringify(decryptedData, null, 2));
+        return decryptedData;
         
      } catch (error) {
         console.error('Erro ao buscar dados:', error);
