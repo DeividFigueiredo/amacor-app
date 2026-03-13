@@ -174,7 +174,7 @@ export default function HomeScreen({ onLogout, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content}>
-        <View style={[styles.welcomeCard, { marginTop: insets.top }]}>
+        <View style={[styles.welcomeCard, { marginTop: Math.max(8, insets.top * 0.4) }]}>
           <Text style={styles.welcomeText}>
             Olá, {userData ? userData.sNomeUSR.split(' ')[0] : 'Usuário'}!
           </Text>

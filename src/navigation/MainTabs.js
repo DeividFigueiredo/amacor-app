@@ -27,7 +27,7 @@ function MainTabs({ userData, onLogout }) {
           backgroundColor: 'white',
           borderTopWidth: 1,
           borderTopColor: '#ecf0f1',
-          height: 70 + bottomInset,
+          height: 55 + bottomInset,
           paddingBottom: 6 + bottomInset,
           paddingTop: 10,
         },
