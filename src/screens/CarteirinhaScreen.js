@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, SafeAreaView, Image, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { gerarTokenAutorizacao } from '../mantis/crypto';
 import { buscarCard, enviarAutorizacao } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
@@ -29,6 +30,8 @@ export default function CarteirinhaScreen() {
   const [tokenExpired, setTokenExpired] = useState(false);
   const [isCardFlipped, setIsCardFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 10);
 
   const detectSuspenso = (data) => {
     if (!data) return false;
@@ -557,36 +560,36 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   name: {
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 4,
     flexWrap: 'wrap',
     flexShrink: 1,
   },
   plan: {
-    fontSize: 16,
-    marginBottom: 8,
+    fontSize: 13,
+    marginBottom: 4,
     color: '#2E76B8',
     flexWrap: 'wrap',
     flexShrink: 1,
   },
   number: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontSize: 13,
+    marginBottom: 4,
     color: '#666',
-    marginTop: 16,
+    marginTop: 6,
     flexWrap: 'wrap',
     flexShrink: 1,
   },
   validity: {
-    fontSize: 14,
-    marginBottom: 8,
+    fontSize: 13,
+    marginBottom: 4,
     color: '#666',
     flexWrap: 'wrap',
     flexShrink: 1,
   },
   validitySpacing: {
-    marginTop: 8,
+    marginTop: 4,
   },
   // 🔥 ESTILOS DO BOTÃO DE TOKEN
   tokenButton: {

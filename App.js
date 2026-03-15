@@ -5,6 +5,7 @@ import { ActivityIndicator, View, Text, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Application from 'expo-application';
+import * as Notifications from 'expo-notifications';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import MainTabs from './src/navigation/MainTabs';
@@ -22,12 +23,46 @@ import { registrarPushToken } from './src/mantis/everflowConex';
 import { gerarChave } from './src/mantis/crypto';
 
 const Stack = createStackNavigator();
-const ENABLE_PUSH = false;
+const ENABLE_PUSH = true;
+const FCM_TOKEN_STORAGE_KEY = 'fcmToken';
+const LEGACY_PUSH_TOKEN_STORAGE_KEY = 'pushToken';
 
 async function registerForPushNotificationsAsync() {
   try {
-    console.warn('Push desativado');
-    return null;
+    if (!Device.isDevice) {
+      console.warn('Push token indisponivel em emulador/simulador');
+      return null;
+    }
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+      });
+    }
+
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.warn('Permissao de notificacao nao concedida');
+      return null;
+    }
+
+    // Em Android nativo, getDevicePushTokenAsync retorna token do FCM.
+    const devicePushToken = await Notifications.getDevicePushTokenAsync();
+    const token = devicePushToken?.data || null;
+
+    if (!token) {
+      console.warn('Token de push nao retornado pelo dispositivo');
+    }
+
+    return token;
   } catch (error) {
     console.error('Erro ao obter push token:', error);
     return null;
@@ -49,15 +84,19 @@ export default function App() {
     if (!ENABLE_PUSH || !isLoggedIn || !userData) return;
     const syncPushToken = async () => {
       try {
-        const pushToken = await registerForPushNotificationsAsync();
-        if (!pushToken) return;
+        const fcmToken = await registerForPushNotificationsAsync();
+        if (!fcmToken) return;
 
-        const storedPushToken = await AsyncStorage.getItem('pushToken');
-        if (storedPushToken === pushToken) return;
+        const storedFcmToken =
+          (await AsyncStorage.getItem(FCM_TOKEN_STORAGE_KEY)) ||
+          (await AsyncStorage.getItem(LEGACY_PUSH_TOKEN_STORAGE_KEY));
+
+        if (storedFcmToken === fcmToken) return;
 
         const token = gerarChave(userData.sCpfUSR, userData.dNascimento);
         const payload = {
-          pushToken,
+          pushToken: fcmToken,
+          fcmToken,
           platform: Platform.OS,
           deviceModel: Device.modelName || 'unknown',
           deviceBrand: Device.brand || 'unknown',
@@ -66,7 +105,9 @@ export default function App() {
         };
 
         await registrarPushToken('/registrar_push', token, payload);
-        await AsyncStorage.setItem('pushToken', pushToken);
+        await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, fcmToken);
+        // Mantem compatibilidade com codigo legado que ainda le a chave pushToken.
+        await AsyncStorage.setItem(LEGACY_PUSH_TOKEN_STORAGE_KEY, fcmToken);
       } catch (error) {
         console.error('Erro ao registrar push no backend:', error);
       }

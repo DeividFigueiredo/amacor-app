@@ -22,25 +22,72 @@ function getVersaoApp() {
 
 function getDeviceInfo() {
     try {
+        let androidId = Platform.OS === 'android' ? (Application.androidId || 'unknown') : 'not-android';
+        let uniqueId = androidId;
+        let idSource = 'expo-application';
+
+        try {
+            // Carrega o módulo nativo apenas quando a build suporta isso.
+            // No Expo Go essa tentativa pode falhar, então mantemos fallback seguro.
+            // eslint-disable-next-line global-require
+            const deviceInfoModule = require('react-native-device-info');
+            const nativeDeviceInfo = deviceInfoModule.default || deviceInfoModule;
+
+            if (Platform.OS === 'android' && typeof nativeDeviceInfo.getAndroidIdSync === 'function') {
+                androidId = nativeDeviceInfo.getAndroidIdSync() || androidId;
+            }
+
+            if (typeof nativeDeviceInfo.getUniqueIdSync === 'function') {
+                uniqueId = nativeDeviceInfo.getUniqueIdSync() || uniqueId;
+            }
+
+            idSource = 'react-native-device-info';
+        } catch (nativeModuleError) {
+            console.log('DeviceInfo nativo indisponivel, usando fallback Expo:', nativeModuleError?.message || nativeModuleError);
+        }
+
         return {
             platform: Platform.OS,
+            androidId: androidId || 'unknown',
+            uniqueId: uniqueId || 'unknown',
+            deviceId: uniqueId || androidId || 'unknown',
+            phoneId: androidId || uniqueId || 'unknown',
+            installationId: uniqueId || androidId || 'unknown',
+            idSource,
             deviceModel: Device.modelName || 'unknown',
             deviceBrand: Device.brand || 'unknown',
             osVersion: Device.osVersion || 'unknown',
             appVersion: appConfig.expo.version || 'unknown',
-            buildNumber: Application.nativeBuildVersion || 'unknown'
+            buildNumber: Application.nativeBuildVersion || 'unknown',
         };
     } catch (error) {
         console.error('Erro ao obter dados do dispositivo:', error);
         return {
             platform: Platform.OS,
+            androidId: 'unknown',
+            uniqueId: 'unknown',
+            deviceId: 'unknown',
+            phoneId: 'unknown',
+            installationId: 'unknown',
+            idSource: 'unavailable',
             deviceModel: 'unknown',
             deviceBrand: 'unknown',
             osVersion: 'unknown',
             appVersion: 'unknown',
-            buildNumber: 'unknown'
+            buildNumber: 'unknown',
         };
     }
+}
+
+function isDeviceRegistrationSuccessful(response) {
+    if (response === true) return true;
+    if (response === null || response === undefined) return false;
+    if (typeof response === 'object') {
+        if (response.success === false) return false;
+        if (response.ok === false) return false;
+        if (response.status && String(response.status).toLowerCase() === 'error') return false;
+    }
+    return true;
 }
 
 export async function buscarCard(endpoint, cpf, token) {
@@ -49,12 +96,26 @@ export async function buscarCard(endpoint, cpf, token) {
     const key= criarChaveCripto (token);
     const hashedCpf= encryptData (key, cpf); 
     const versaoApp = getVersaoApp();
-    const deviceInfo = getDeviceInfo();
-    const hashedDeviceInfo = encryptData(key, JSON.stringify(deviceInfo));
+    const storedPushToken =
+        (await AsyncStorage.getItem('fcmToken')) ||
+        (await AsyncStorage.getItem('pushToken'));
+
+    // Registra dispositivo primeiro na rota de push. O login segue apenas com resposta valida.
+    const deviceRegistrationResponse = await registrarPushToken('/registrar_push', token, {
+        flow: 'pre_login_device_registration',
+        pushToken: storedPushToken || null,
+        fcmToken: storedPushToken || null,
+    });
+
+    if (!isDeviceRegistrationSuccessful(deviceRegistrationResponse)) {
+        console.error('❌ Falha no registro de dispositivo antes do login:', deviceRegistrationResponse);
+        throw new Error('Não foi possível registrar o dispositivo antes do login. Tente novamente.');
+    }
+
+    console.log('✅ Dispositivo registrado antes do login:', deviceRegistrationResponse);
         
     try {
         console.log('🔍 Iniciando busca de dados...');
-        console.log('token:', token)
                 const response = await fetch(url + endpoint, {
                 method: 'POST', // muda para POST
                 headers: {
@@ -62,7 +123,7 @@ export async function buscarCard(endpoint, cpf, token) {
                         'Authorization': ` ${token}`,
                         'App-Version': versaoApp
                 },
-            body: JSON.stringify({ hashedCpf, hashedDeviceInfo }) // envia cpf + dados do dispositivo em JSON
+            body: JSON.stringify({ hashedCpf }) // dados de dispositivo seguem na rota de push
         });
     console.log('URL de requisição:', url + endpoint);
         if (!response.ok) {
@@ -378,8 +439,16 @@ export async function registrarPushToken(endpoint, token, payload) {
     const versaoApp = getVersaoApp();
 
     try {
+        const deviceInfo = getDeviceInfo();
+        const pushPayload = {
+            ...(payload || {}),
+            ...deviceInfo,
+        };
+
         const key = criarChaveCripto(token);
-        const hashedPushData = encryptData(key, JSON.stringify(payload));
+        console.log('🔔 Push payload preparado (chaves):', Object.keys(pushPayload));
+        const hashedPushData = encryptData(key, JSON.stringify(pushPayload));
+        const hashedAuthToken = encryptData(key, token);
 
         const response = await fetch(url + endpoint, {
             method: 'POST',
@@ -388,7 +457,7 @@ export async function registrarPushToken(endpoint, token, payload) {
                 'Authorization': ` ${token}`,
                 'App-Version': versaoApp
             },
-            body: JSON.stringify({ hashedPushData, token })
+            body: JSON.stringify({ hashedPushData, hashedAuthToken })
         });
 
         if (!response.ok) {

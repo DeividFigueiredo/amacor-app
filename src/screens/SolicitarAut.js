@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, Image, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
@@ -10,6 +11,7 @@ import { getTimestampPayload } from '../utils/utils';
 
 export default function SolicitarAut({ navigation }) {
     const [loading, setLoading] = useState(false);
+    const insets = useSafeAreaInsets();
     const [documento, setDocumento] = useState(null);
     const [userData, setUserData] = useState(null);
     const [nomeExame, setNomeExame] = useState('');
@@ -258,7 +260,7 @@ export default function SolicitarAut({ navigation }) {
             </KeyboardAvoidingView>
 
             {/* Botão de Envio */}
-            <View style={styles.footerContainer}>
+            <View style={[styles.footerContainer, { paddingBottom: insets.bottom || 16 }]}> 
                 <TouchableOpacity
                     style={[styles.btnEnviar, loading && styles.btnEnviarDisabled]}
                     onPress={enviarAutorizacaoComDocumento}
