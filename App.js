@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View, Text, Platform } from 'react-native';
+import { ActivityIndicator, View, Text, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Application from 'expo-application';
@@ -104,7 +104,24 @@ export default function App() {
           buildNumber: Application.nativeBuildVersion || 'unknown',
         };
 
-        await registrarPushToken('/registrar_push', token, payload);
+        const registrationResult = await registrarPushToken('/registrar_push', token, payload);
+
+        if (registrationResult && registrationResult.success === false) {
+          if (Number(registrationResult.httpStatus) === 403) {
+            Alert.alert(
+              'Dispositivo ja cadastrado',
+              'Ja existe um dispositivo cadastrado para este usuario. Entre em contato com a operadora de saude.'
+            );
+            await AsyncStorage.removeItem('userData');
+            setUserData(null);
+            setIsLoggedIn(false);
+            return;
+          }
+
+          console.warn('Falha no registro de push:', registrationResult);
+          return;
+        }
+
         await AsyncStorage.setItem(FCM_TOKEN_STORAGE_KEY, fcmToken);
         // Mantem compatibilidade com codigo legado que ainda le a chave pushToken.
         await AsyncStorage.setItem(LEGACY_PUSH_TOKEN_STORAGE_KEY, fcmToken);

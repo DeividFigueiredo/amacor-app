@@ -2,16 +2,26 @@ import React, { useRef, useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, SafeAreaView, StatusBar, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import WebView from 'react-native-webview';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function BrowserScreen({ navigation, route }) {
-  const { url, title } = route.params;
+  const insets = useSafeAreaInsets();
+  const initialUrl = typeof route?.params?.url === 'string' ? route.params.url.trim() : '';
+  const title = route?.params?.title || 'Navegador';
   const webViewRef = useRef(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState(url);
+  const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [loading, setLoading] = useState(true);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [loadError, setLoadError] = useState(null);
+
+  useEffect(() => {
+    if (!initialUrl) {
+      setLoadError('URL nao informada para abrir a pagina.');
+      setLoading(false);
+    }
+  }, [initialUrl]);
 
   // Limpar dados quando o componente for desmontado
   useEffect(() => {
@@ -256,13 +266,14 @@ export default function BrowserScreen({ navigation, route }) {
         ref={webViewRef}
         source={{ uri: currentUrl }}
         style={styles.webview}
+        originWhitelist={['*']}
         onNavigationStateChange={onNavigationStateChange}
         onMessage={handleMessage}
         startInLoadingState={true}
         javaScriptEnabled={true}
-        domStorageEnabled={false} // Desabilitar localStorage para mais privacidade
+        domStorageEnabled={true}
         allowsBackForwardNavigationGestures={true}
-        sharedCookiesEnabled={false} // Desabilitar cookies compartilhados
+        sharedCookiesEnabled={true}
         onLoadStart={() => {
           setLoading(true);
           setLoadError(null);
@@ -270,9 +281,12 @@ export default function BrowserScreen({ navigation, route }) {
         onLoadEnd={() => setLoading(false)}
         onError={handleWebViewError}
         onHttpError={handleWebViewHttpError}
-        // Configurações adicionais de privacidade
-        cacheEnabled={false}
-        thirdPartyCookiesEnabled={false}
+        cacheEnabled={true}
+        thirdPartyCookiesEnabled={true}
+        mixedContentMode="compatibility"
+        setSupportMultipleWindows={false}
+        javaScriptCanOpenWindowsAutomatically={true}
+        allowsInlineMediaPlayback={true}
         injectedJavaScriptBeforeContentLoaded={`
           // Prevenir rastreamento desde o início
           Object.defineProperty(navigator, 'doNotTrack', { value: '1' });
@@ -288,7 +302,7 @@ export default function BrowserScreen({ navigation, route }) {
       )}
 
       {/* Footer Navigation */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <TouchableOpacity 
           onPress={goBack} 
           style={[styles.footerButton, !canGoBack && styles.disabledButton]}

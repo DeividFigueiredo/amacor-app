@@ -138,7 +138,7 @@ export default function EncontrarClinicas({ navigation, route }) {
       }
     } catch (error) {
       console.error('Erro ao buscar clínicas:', error);
-      Alert.alert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão.');
+      Alert.alert('Erro', 'Nao foi possivel concluir a solicitacao. Tente novamente.');
     } finally {
       setLoadingClinicas(false);
     }

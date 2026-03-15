@@ -90,6 +90,45 @@ function isDeviceRegistrationSuccessful(response) {
     return true;
 }
 
+function isPushRegistrationForbidden(response) {
+    if (!response || typeof response !== 'object') return false;
+
+    const action = String(response.action || '').toLowerCase();
+    const hasDeviceConflictAction = action === 'device_conflict';
+    const hasOtherDeviceFlag = response.already_registered_other_device === true;
+
+    const statusCandidates = [
+        response.httpStatus,
+        response.statusCode,
+        response.status,
+        response.code,
+    ];
+
+    const has403Status = statusCandidates.some((value) => {
+        if (value === null || value === undefined) return false;
+        const normalized = String(value).toLowerCase();
+        return normalized === '403' || normalized.includes('403');
+    });
+
+    const messageBlob = [
+        response.message,
+        response.error,
+        response.responseBody,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+    const hasDeviceAlreadyRegisteredMessage =
+        (messageBlob.includes('dispositivo') && messageBlob.includes('cadastrado')) ||
+        messageBlob.includes('ja existe um dispositivo cadastrado para este usuario') ||
+        messageBlob.includes('beneficiario dispositivo cadastrado') ||
+        messageBlob.includes('outro dispositivo') ||
+        messageBlob.includes('possui cadastro em outro dispositivo');
+
+    return has403Status || hasDeviceConflictAction || hasOtherDeviceFlag || hasDeviceAlreadyRegisteredMessage;
+}
+
 export async function buscarCard(endpoint, cpf, token) {
     
     const url = getEverflowUrl();
@@ -109,6 +148,14 @@ export async function buscarCard(endpoint, cpf, token) {
 
     if (!isDeviceRegistrationSuccessful(deviceRegistrationResponse)) {
         console.error('❌ Falha no registro de dispositivo antes do login:', deviceRegistrationResponse);
+        if (isPushRegistrationForbidden(deviceRegistrationResponse)) {
+            throw new Error('Ja existe um dispositivo cadastrado para este usuario. Entre em contato com a operadora de saude.');
+        }
+
+        if (deviceRegistrationResponse?.message) {
+            throw new Error(String(deviceRegistrationResponse.message));
+        }
+
         throw new Error('Não foi possível registrar o dispositivo antes do login. Tente novamente.');
     }
 
@@ -460,18 +507,73 @@ export async function registrarPushToken(endpoint, token, payload) {
             body: JSON.stringify({ hashedPushData, hashedAuthToken })
         });
 
+        console.log('🔔 registrarPushToken status:', response.status);
+        console.log('🔔 registrarPushToken ok:', response.ok);
+
+        let responseBody = '';
+        try {
+            responseBody = await response.text();
+        } catch (e) {
+            responseBody = '';
+        }
+
+        console.log('🔔 registrarPushToken raw body:', responseBody);
+
+        let parsedResponse = null;
+        if (responseBody) {
+            try {
+                parsedResponse = JSON.parse(responseBody);
+                console.log('🔔 registrarPushToken parsed body:', parsedResponse);
+            } catch (parseError) {
+                console.log('🔔 registrarPushToken parse error:', parseError?.message || parseError);
+            }
+        }
+
         if (!response.ok) {
-            throw new Error('Erro na requisição: ' + response.status);
+            const backendMessage = parsedResponse?.message || parsedResponse?.error;
+            return {
+                success: false,
+                status: 'error',
+                httpStatus: response.status,
+                message: backendMessage || (
+                    response.status === 403
+                        ? 'Ja existe um dispositivo cadastrado para este usuario. Entre em contato com a operadora de saude.'
+                        : `Erro na requisicao: ${response.status}`
+                ),
+                action: parsedResponse?.action,
+                already_registered_other_device: parsedResponse?.already_registered_other_device,
+                responseBody,
+            };
         }
 
         try {
-            return await response.json();
+            if (!parsedResponse) {
+                return true;
+            }
+
+            // Alguns backends retornam HTTP 200 com erro de negocio no payload.
+            if (isPushRegistrationForbidden(parsedResponse)) {
+                return {
+                    success: false,
+                    status: 'error',
+                    httpStatus: parsedResponse?.httpStatus || parsedResponse?.statusCode || 200,
+                    message: parsedResponse?.message || parsedResponse?.error || 'Dispositivo ja cadastrado',
+                    responseBody: JSON.stringify(parsedResponse),
+                };
+            }
+
+            return parsedResponse;
         } catch (e) {
             return true;
         }
     } catch (error) {
         console.error('Erro ao registrar push token:', error);
-        return null;
+        return {
+            success: false,
+            status: 'error',
+            httpStatus: 0,
+            message: error?.message || 'Erro ao registrar push token',
+        };
     }
 }
 
@@ -516,8 +618,8 @@ export async function EncontrarClinicasClose(latitude, longitude, endpoint, toke
     } catch (error) {
       console.error('Erro ao buscar clínicas:', error);
       Alert.alert(
-        'Erro de Conexão',
-        'Não foi possível conectar ao servidor. Verifique sua conexão.'
+                'Erro',
+                'Nao foi possivel concluir a solicitacao. Tente novamente.'
       );
     } finally {
       setLoadingClinicas(false);

@@ -79,7 +79,23 @@ export default function LoginScreen({ navigation, onLogin }) {
       }
     } catch (err) {
       console.error('Erro ao fazer login:', err);
-      Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
+      const errorMessage = String(err?.message || '').toLowerCase();
+      const isDeviceAlreadyRegisteredError =
+        errorMessage.includes('ja existe um dispositivo cadastrado para este usuario') ||
+        (errorMessage.includes('dispositivo') && errorMessage.includes('cadastrado')) ||
+        (errorMessage.includes('operadora') && errorMessage.includes('saude')) ||
+        errorMessage.includes('device_conflict') ||
+        errorMessage.includes('outro dispositivo') ||
+        errorMessage.includes('already_registered_other_device');
+
+      if (isDeviceAlreadyRegisteredError) {
+        Alert.alert(
+          'Dispositivo ja cadastrado',
+          'Ja existe um dispositivo cadastrado para este usuario. Entre em contato com a operadora de saude.'
+        );
+      } else {
+        Alert.alert('Erro', 'Nao foi possivel concluir a solicitacao no momento. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

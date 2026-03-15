@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { buscarClinicas } from '../mantis/everflowConex';
 import { gerarChave } from '../mantis/crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function BuscarEspecialidades({ navigation }) {
+  const insets = useSafeAreaInsets();
   const [userData, setUserData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredSpecialties, setFilteredSpecialties] = useState([]);
@@ -182,7 +184,7 @@ export default function BuscarEspecialidades({ navigation }) {
   return (
     
     
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 16) }] }>
       <Text style={styles.title}>Buscar Especialidades</Text>
       
       {/* Barra de Pesquisa */}
