@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Act
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { buscarCard, postPedidoAutorizacao } from '../mantis/everflowConex';
-import { gerarChave, gerarTokenAutorizacao, converterParaBase64 } from '../mantis/crypto';
+import { postPedidoAutorizacao } from '../mantis/everflowConex';
+import { gerarChave, converterParaBase64 } from '../mantis/crypto';
 import { getTimestampPayload } from '../utils/utils';
+
+const CROP_ASPECT = [210, 297];
+const A4_ASPECT_RATIO = 210 / 297;
 
 export default function SolicitarAut({ navigation }) {
     const [loading, setLoading] = useState(false);
@@ -49,7 +51,7 @@ export default function SolicitarAut({ navigation }) {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
-                aspect: [4, 3],
+                aspect: CROP_ASPECT,
                 quality: 0.8,
             });
 
@@ -80,7 +82,7 @@ export default function SolicitarAut({ navigation }) {
 
             const result = await ImagePicker.launchCameraAsync({
                 allowsEditing: true,
-                aspect: [4, 3],
+                aspect: CROP_ASPECT,
                 quality: 0.8,
             });
 
@@ -181,13 +183,18 @@ export default function SolicitarAut({ navigation }) {
                     {/* Seção de Documento */}
                     <View style={styles.section}>
                     <Text style={styles.sectionTitle}>📄 Anexar Documento</Text>
+                    <Text style={styles.helperText}>
+                        A foto abre com um frame no formato de folha A4 para voce enquadrar o pedido e confirmar o corte.
+                    </Text>
                     
                     {documento ? (
                         <View style={styles.documentoContainer}>
-                            <Image
-                                source={{ uri: documento.uri }}
-                                style={styles.imagemPreview}
-                            />
+                            <View style={styles.previewFrame}>
+                                <Image
+                                    source={{ uri: documento.uri }}
+                                    style={styles.imagemPreview}
+                                />
+                            </View>
                             <Text style={styles.nomeDocumento}>{documento.name}</Text>
                             <TouchableOpacity
                                 style={styles.btnRemover}
@@ -305,6 +312,11 @@ const styles = StyleSheet.create({
         color: '#2E76B8',
         marginBottom: 12,
     },
+    helperText: {
+        fontSize: 12,
+        color: '#5D6F82',
+        marginBottom: 12,
+    },
     botoesAnexo: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -329,11 +341,20 @@ const styles = StyleSheet.create({
     documentoContainer: {
         alignItems: 'center',
     },
+    previewFrame: {
+        width: '100%',
+        aspectRatio: A4_ASPECT_RATIO,
+        borderRadius: 10,
+        borderWidth: 2,
+        borderColor: '#2E76B8',
+        borderStyle: 'dashed',
+        overflow: 'hidden',
+        marginBottom: 12,
+        backgroundColor: '#EAF2FA',
+    },
     imagemPreview: {
         width: '100%',
-        height: 200,
-        borderRadius: 10,
-        marginBottom: 12,
+        height: '100%',
     },
     nomeDocumento: {
         fontSize: 12,
@@ -372,16 +393,16 @@ const styles = StyleSheet.create({
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-      
+        backgroundColor: '#F9F9F9',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+    },
     textInput: {
         flex: 1,
         fontSize: 14,
         color: '#333',
         fontWeight: '500',
-    },  backgroundColor: '#F9F9F9',
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
     },
     instructionBox: {
         backgroundColor: '#E8F4FF',

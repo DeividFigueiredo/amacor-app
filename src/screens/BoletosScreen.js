@@ -168,28 +168,49 @@ export default function BoletosScreen() {
 
   const gerarHtmlBoleto = async (boleto) => {
     const detalhes = boleto.detalhes || {};
+    const escapeHtml = (valor) => String(valor ?? '-')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+    const formatarValorBoleto = (valor) => {
+      if (valor === undefined || valor === null || valor === '') return '0,00';
+      const numero = parseFloat(String(valor).replace(/\./g, '').replace(',', '.'));
+      if (Number.isNaN(numero)) return '0,00';
+      return numero.toFixed(2).replace('.', ',');
+    };
+
+    const quebrarLinhas = (texto) => escapeHtml(texto).replace(/\r\n|\r|\n/g, '<br/>');
+
     const contrato = detalhes.sNumeroCNT || boleto.contrato || '-';
-    const responsavel = detalhes.sNomeTIT || boleto.nomeResponsavel || '-';
-    const valor = formatarMoeda(detalhes.cTotalAPagar || boleto.mensalidade);
+    const valorBoleto = formatarValorBoleto(detalhes.cTotalAPagar || boleto.mensalidade);
     const vencimento = formatarData(detalhes.dVencimento || boleto.vencimento);
-    const emissao = formatarData(detalhes.dEmissao || detalhes.dDocumento);
+    const dataDocumento = formatarData(detalhes.dDocumento || detalhes.dEmissao || new Date().toLocaleDateString('pt-BR'));
     const parcela = detalhes.sParcela || boleto.parcela || '-';
     const nossoNumero = detalhes.sNossoNumero || detalhes.sNossoNumero_Boleto || '-';
-    const documento = detalhes.sNumDoc || detalhes.sDocumento || '-';
+    const documento = detalhes.sNumDoc || detalhes.sDocumento || detalhes.sCodigoREC || parcela;
     const agencia = detalhes.sAgencia || '-';
-    const conta = detalhes.sContaCorrente || '-';
+    const contaCorrente = detalhes.sContaCorrente || '-';
+    const conta = contaCorrente.length > 1 ? contaCorrente.slice(0, -1) : contaCorrente;
+    const contaDv = contaCorrente.length > 1 ? contaCorrente.slice(-1) : '-';
     const carteira = detalhes.sCarteira || '-';
-    const banco = detalhes.sNomeBanco || '-';
-    const razaoSocial = detalhes.sRazaoSocial || '-';
-    const sacado = detalhes.sNomeTIT || detalhes.sAssociado || '-';
-    const cpfCgc = detalhes.sCgcCpf || '-';
-    const endereco1 = detalhes.sSacadoEnd1 || '-';
-    const endereco2 = detalhes.sSacadoEnd2 || '-';
-    const endereco3 = detalhes.sSacadoEnd3 || '-';
+    const razaoSocial = detalhes.sRazaoSocial || 'MH VIDA OPERADORA DE PLANOS DE SAUDE LTDA';
+    const cedente = detalhes.sCedente || 'AMACOR Planos de Saude';
+    const sacado = detalhes.sAssociado || detalhes.sNomeTIT || boleto.nomeResponsavel || '-';
+    const cpfCgc = detalhes.sCgcCpf || detalhes.sCpfCgc || '-';
+    const enderecoLinha1 = [detalhes.sSacadoEnd1, detalhes.sSacadoEnd2, detalhes.sSacadoEnd3]
+      .filter(Boolean)
+      .join(' - ') || '-';
+    const enderecoLinha2 = [detalhes.sCidade, detalhes.sEstado, detalhes.sCep]
+      .filter(Boolean)
+      .join(' - ') || '-';
     const instrucoes = detalhes.mInstrucoes || '-';
-    const ipte = detalhes.sIPTE || '-';
-    const codigoBarras = detalhes.sCodigoBarras || boleto.codigoBarras || '-';
-    const localPagamento = detalhes.sAvisoLocalPagamento1 || '-';
+    const ipte = detalhes.sIPTE || boleto.codigoBarras || '-';
+    const codigoBarras = detalhes.sCodigoBarras || boleto.codigoBarras || ipte;
+    const localPagamento = detalhes.sAvisoLocalPagamento1 || 'Pagavel preferencialmente na rede bancaria ate o vencimento';
+    const codigoBanco = detalhes.sCodigoBancoCompleto || detalhes.sCodigoBanco || '341-7';
 
     let logoBase64 = '';
     try {
@@ -204,7 +225,7 @@ export default function BoletosScreen() {
 
     let barcodeBase64 = '';
     try {
-      const barcodeText = ipte && ipte !== '-' ? ipte : codigoBarras;
+      const barcodeText = codigoBarras && codigoBarras !== '-' ? codigoBarras : ipte;
       if (barcodeText && barcodeText !== '-') {
         const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(
           barcodeText
@@ -224,120 +245,120 @@ export default function BoletosScreen() {
         <head>
           <meta charset="utf-8" />
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #1C1C1E; }
-            .title { display: flex; align-items: center; gap: 12px; border-bottom: 2px solid #1C1C1E; padding-bottom: 8px; margin-bottom: 12px; }
-            .bank-code { font-size: 20px; font-weight: 700; padding: 0 8px; border-left: 2px solid #1C1C1E; }
-            .linha { font-size: 12px; font-weight: 600; letter-spacing: 0.2px; }
-            .logo { width: 44px; height: 44px; object-fit: contain; }
-            .section { margin-top: 10px; border: 1px solid #1C1C1E; }
-            .row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; border-top: 1px solid #1C1C1E; }
-            .row:first-child { border-top: none; }
-            .cell { padding: 6px 8px; border-right: 1px solid #1C1C1E; min-height: 48px; }
-            .cell:last-child { border-right: none; }
-            .label { font-size: 10px; color: #4B4B4B; text-transform: uppercase; }
-            .value { font-size: 12px; font-weight: 600; margin-top: 4px; }
-            .row-2 { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #1C1C1E; }
-            .row-1 { display: grid; grid-template-columns: 1fr; border-top: 1px solid #1C1C1E; }
-            .barcode-box { margin-top: 12px; padding: 8px; border: 1px solid #1C1C1E; text-align: center; }
-            .barcode-box .label { text-align: left; display: block; }
-            .barcode { font-size: 12px; word-break: break-all; }
-            .barcode-img { width: 384px; height: 72px; object-fit: contain; display: block; margin: 6px auto 0; }
-            .small { font-size: 11px; }
+            body { font-family: Arial, sans-serif; color: #000; margin: 18px; }
+            .boleto { border: 1px solid #000; }
+            .topo { display: grid; grid-template-columns: 52px 78px 1fr; align-items: center; border-bottom: 2px solid #000; }
+            .logo-box { border-right: 1px solid #000; text-align: center; padding: 4px; }
+            .logo { width: 38px; height: 38px; object-fit: contain; }
+            .codigo-banco { border-right: 1px solid #000; text-align: center; font-size: 22px; font-weight: 700; }
+            .linha-digitavel { font-size: 14px; font-weight: 700; text-align: right; padding-right: 8px; letter-spacing: 0.4px; }
+            .bloco { border-top: 1px solid #000; }
+            .linha-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; }
+            .linha-2 { display: grid; grid-template-columns: 2fr 1fr; }
+            .linha-1 { display: grid; grid-template-columns: 1fr; }
+            .celula { border-right: 1px solid #000; padding: 4px 6px; min-height: 38px; }
+            .celula:last-child { border-right: none; }
+            .rotulo { font-size: 9px; text-transform: uppercase; }
+            .valor { font-size: 12px; font-weight: 700; margin-top: 3px; word-break: break-word; }
+            .menor { font-size: 11px; font-weight: 600; }
+            .assinatura { margin-top: 12px; font-size: 11px; }
+            .codigo-barras-area { border-top: 2px solid #000; text-align: center; padding: 8px 6px; }
+            .codigo-barras-texto { font-size: 13px; font-weight: 700; letter-spacing: 1.2px; }
+            .barcode-img { width: 390px; height: 70px; object-fit: contain; display: block; margin: 4px auto 0; }
           </style>
         </head>
         <body>
-          <div class="title">
-            ${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" />` : ''}
-            <div class="bank-code">${detalhes.sCodigoBancoCompleto || detalhes.sCodigoBanco || '—'}</div>
-            <div class="linha">${razaoSocial}</div>
-          </div>
+          <div class="boleto">
+            <div class="topo">
+              <div class="logo-box">${logoBase64 ? `<img class="logo" src="data:image/png;base64,${logoBase64}" />` : ''}</div>
+              <div class="codigo-banco">${escapeHtml(codigoBanco)}</div>
+              <div class="linha-digitavel">${escapeHtml(ipte)}</div>
+            </div>
 
-          <div class="section">
-            <div class="row">
-              <div class="cell">
-                <div class="label">Beneficiário</div>
-                <div class="value">${razaoSocial}</div>
+            <div class="bloco linha-3">
+              <div class="celula">
+                <div class="rotulo">Cedente</div>
+                <div class="valor">${escapeHtml(cedente)}</div>
               </div>
-              <div class="cell">
-                <div class="label">Agência / Conta</div>
-                <div class="value">${agencia} / ${conta}</div>
+              <div class="celula">
+                <div class="rotulo">Agencia / Codigo Cedente</div>
+                <div class="valor">${escapeHtml(agencia)} / ${escapeHtml(conta)}-${escapeHtml(contaDv)}</div>
               </div>
-              <div class="cell">
-                <div class="label">Vencimento</div>
-                <div class="value">${vencimento}</div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="cell">
-                <div class="label">Sacado</div>
-                <div class="value">${sacado}</div>
-              </div>
-              <div class="cell">
-                <div class="label">CPF/CNPJ</div>
-                <div class="value">${cpfCgc}</div>
-              </div>
-              <div class="cell">
-                <div class="label">Valor do documento</div>
-                <div class="value">${valor}</div>
+              <div class="celula">
+                <div class="rotulo">Vencimento</div>
+                <div class="valor">${escapeHtml(vencimento)}</div>
               </div>
             </div>
-            <div class="row-2">
-              <div class="cell">
-                <div class="label">Endereço</div>
-                <div class="value">${endereco1}</div>
-                <div class="value small">${endereco2}</div>
-              </div>
-              <div class="cell">
-                <div class="label">CEP</div>
-                <div class="value">${endereco3}</div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="cell">
-                <div class="label">Nosso número</div>
-                <div class="value">${nossoNumero}</div>
-              </div>
-              <div class="cell">
-                <div class="label">Número do documento</div>
-                <div class="value">${documento}</div>
-              </div>
-              <div class="cell">
-                <div class="label">Emissão</div>
-                <div class="value">${emissao}</div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="cell">
-                <div class="label">Carteira</div>
-                <div class="value">${carteira}</div>
-              </div>
-              <div class="cell">
-                <div class="label">Contrato</div>
-                <div class="value">${contrato}</div>
-              </div>
-              <div class="cell">
-                <div class="label">Parcela</div>
-                <div class="value">${parcela}</div>
-              </div>
-            </div>
-            <div class="row-1">
-              <div class="cell">
-                <div class="label">Local de pagamento</div>
-                <div class="value">${localPagamento}</div>
-              </div>
-            </div>
-            <div class="row-1">
-              <div class="cell">
-                <div class="label">Instruções</div>
-                <div class="value">${instrucoes}</div>
-              </div>
-            </div>
-          </div>
 
-          <div class="barcode-box">
-            <div class="label">Código de barras</div>
-            ${barcodeBase64 ? `<img class="barcode-img" src="data:image/png;base64,${barcodeBase64}" />` : ''}
-            <div class="value barcode">${ipte}</div>
+            <div class="bloco linha-3">
+              <div class="celula">
+                <div class="rotulo">Sacado</div>
+                <div class="valor">${escapeHtml(sacado)}</div>
+                <div class="menor">CPF/CNPJ: ${escapeHtml(cpfCgc)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Nosso Numero</div>
+                <div class="valor">${escapeHtml(nossoNumero)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Numero do Documento</div>
+                <div class="valor">${escapeHtml(documento)}</div>
+              </div>
+            </div>
+
+            <div class="bloco linha-2">
+              <div class="celula">
+                <div class="rotulo">Endereco do Sacado</div>
+                <div class="valor">${escapeHtml(enderecoLinha1)}</div>
+                <div class="menor">${escapeHtml(enderecoLinha2)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Data do Documento</div>
+                <div class="valor">${escapeHtml(dataDocumento)}</div>
+              </div>
+            </div>
+
+            <div class="bloco linha-3">
+              <div class="celula">
+                <div class="rotulo">Local de Pagamento</div>
+                <div class="valor">${escapeHtml(localPagamento)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Carteira</div>
+                <div class="valor">${escapeHtml(carteira)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Valor do Documento</div>
+                <div class="valor">R$ ${escapeHtml(valorBoleto)}</div>
+              </div>
+            </div>
+
+            <div class="bloco linha-1">
+              <div class="celula">
+                <div class="rotulo">Instrucoes</div>
+                <div class="valor">${quebrarLinhas(instrucoes)}</div>
+              </div>
+            </div>
+
+            <div class="bloco linha-3">
+              <div class="celula">
+                <div class="rotulo">Razao Social</div>
+                <div class="valor">${escapeHtml(razaoSocial)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Contrato</div>
+                <div class="valor">${escapeHtml(contrato)}</div>
+              </div>
+              <div class="celula">
+                <div class="rotulo">Parcela</div>
+                <div class="valor">${escapeHtml(parcela)}</div>
+              </div>
+            </div>
+
+            <div class="codigo-barras-area">
+              ${barcodeBase64 ? `<img class="barcode-img" src="data:image/png;base64,${barcodeBase64}" />` : ''}
+              <div class="codigo-barras-texto">${escapeHtml(codigoBarras)}</div>
+            </div>
           </div>
         </body>
       </html>
