@@ -1,21 +1,28 @@
 const fs = require("fs");
 
 const pkg = require("../package.json");
-const gradlePath = "android/app/build.gradle";
+const appPath = "./app.json";
 
-let gradle = fs.readFileSync(gradlePath, "utf8");
+const app = JSON.parse(fs.readFileSync(appPath, "utf8"));
+
+// garante estrutura
+if (!app.expo.android) {
+    app.expo.android = {};
+}
 
 // pega versionCode atual
-const codeMatch = gradle.match(/versionCode (\d+)/);
-let versionCode = codeMatch ? parseInt(codeMatch[1]) : 1;
+let versionCode = app.expo.android.versionCode || 1;
 
+// incrementa
 versionCode++;
 
-gradle = gradle.replace(/versionCode \d+/, `versionCode ${versionCode}`);
-gradle = gradle.replace(/versionName ".*"/, `versionName "${pkg.version}"`);
+// atualiza
+app.expo.version = pkg.version;
+app.expo.android.versionCode = versionCode;
 
-fs.writeFileSync(gradlePath, gradle);
+// salva
+fs.writeFileSync(appPath, JSON.stringify(app, null, 2) + "\n");
 
-console.log("Android version updated:");
+console.log("Expo version updated:");
 console.log("versionName:", pkg.version);
 console.log("versionCode:", versionCode);
