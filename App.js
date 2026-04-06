@@ -45,8 +45,25 @@ async function registerForPushNotificationsAsync() {
     let finalStatus = existingStatus;
 
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+      // Mostrar explicação antes do diálogo do sistema
+      await new Promise((resolve) => {
+        Alert.alert(
+          'Ativar Notificações',
+          'Permita as notificações para receber avisos sobre autorizações, boletos e atualizações importantes do seu plano de saúde.',
+          [
+            { text: 'Agora não', style: 'cancel', onPress: resolve },
+            {
+              text: 'Permitir',
+              onPress: async () => {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+                resolve();
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+      });
     }
 
     if (finalStatus !== 'granted') {

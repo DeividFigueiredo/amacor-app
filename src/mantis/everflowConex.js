@@ -79,6 +79,18 @@ function getDeviceInfo() {
     }
 }
 
+// Verifica se a resposta é um erro 426 de versão desatualizada e lança o erro com a mensagem do servidor.
+async function checkVersionError(response) {
+    if (response.status !== 426) return;
+    let body = {};
+    try { body = await response.clone().json(); } catch (_) {}
+    if (body.error === 'blocked_app_version' || body.error === 'unsupported_app_version') {
+        const err = new Error(body.message || 'Atualize o app para continuar.');
+        err.code = 'APP_VERSION_OUTDATED';
+        throw err;
+    }
+}
+
 function isDeviceRegistrationSuccessful(response) {
     if (response === true) return true;
     if (response === null || response === undefined) return false;
@@ -174,6 +186,7 @@ export async function buscarCard(endpoint, cpf, token) {
         });
     console.log('URL de requisição:', url + endpoint);
         if (!response.ok) {
+            await checkVersionError(response);
             throw new Error('Erro na requisição: ' + response.status);
         }
 
@@ -304,6 +317,7 @@ export async function buscarPagamentos(endpoint, contrato, token) {
         
 
         if (!response.ok) {
+            await checkVersionError(response);
             throw new Error('Erro na requisição: ' + response.status);
         }
 
@@ -347,6 +361,7 @@ export async function buscarClinicas(endpoint, especialidade, token){
         });
 
         if (!response.ok){
+            await checkVersionError(response);
             throw new Error ('Erro na requisição:' + response.status);
         }
         const data= await response.json();
@@ -401,6 +416,7 @@ export async function retornarSuspenso(endpoint, contrato, token){
         })
         
         if (!response.ok) {
+            await checkVersionError(response);
             throw new Error('Erro na requisição: ' + response.status);
         }
         
@@ -433,6 +449,7 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
             });
 
             if (!response.ok) {
+                await checkVersionError(response);
                 throw new Error('Erro na requisição: ' + response.status);
             }
 
@@ -468,6 +485,7 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
         });
 
         if (!response.ok) {
+            await checkVersionError(response);
             throw new Error('Erro na requisição: ' + response.status);
         }
 
@@ -530,6 +548,11 @@ export async function registrarPushToken(endpoint, token, payload) {
         }
 
         if (!response.ok) {
+            if (response.status === 426 && (parsedResponse?.error === 'blocked_app_version' || parsedResponse?.error === 'unsupported_app_version')) {
+                const err = new Error(parsedResponse.message || 'Atualize o app para continuar.');
+                err.code = 'APP_VERSION_OUTDATED';
+                throw err;
+            }
             const backendMessage = parsedResponse?.message || parsedResponse?.error;
             return {
                 success: false,
@@ -600,6 +623,7 @@ export async function EncontrarClinicasClose(latitude, longitude, endpoint, toke
       });
 
       if (!response.ok) {
+        await checkVersionError(response);
         throw new Error(`Erro HTTP: ${response.status}`);
       }
 
@@ -657,6 +681,7 @@ export async function postPedidoAutorizacao(endpoint, token, pedidoData){
         console.log('📡 Status da resposta:', response.status);
         
         if (!response.ok) {
+            await checkVersionError(response);
             const errorText = await response.text();
             console.error('❌ Erro da API:', errorText);
             throw new Error(`Erro HTTP: ${response.status} - ${errorText}`);
@@ -693,6 +718,7 @@ export async function buscarAutorizacoes(endpoint, card, token) {
         });
 
         if (!response.ok) {
+            await checkVersionError(response);
             throw new Error(`Erro HTTP: ${response.status}`);
         }
 
