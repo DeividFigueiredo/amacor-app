@@ -17,6 +17,30 @@ export default function ResultadosClinicas() {
   const navigation = useNavigation();
   const { especialidade, clinicas } = route.params || { especialidade: '', clinicas: [] };
 
+  const clinicasOrdenadas = React.useMemo(() => {
+    if (!Array.isArray(clinicas) || clinicas.length === 0) {
+      return [];
+    }
+
+    const indiceAmacor = clinicas.findIndex((clinica) => {
+      const nome = String(clinica?.nome || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+
+      return nome.includes('amacor');
+    });
+
+    if (indiceAmacor <= 0) {
+      return clinicas;
+    }
+
+    const lista = [...clinicas];
+    const [amacor] = lista.splice(indiceAmacor, 1);
+    lista.unshift(amacor);
+    return lista;
+  }, [clinicas]);
+
   const abrirNoMapa = (endereco) => {
     const query = encodeURIComponent(endereco);
     const url = Platform.select({
@@ -91,13 +115,13 @@ export default function ResultadosClinicas() {
         Clínicas de {especialidade}
       </Text>
 
-      {clinicas.length === 0 ? (
+      {clinicasOrdenadas.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Nenhuma clínica encontrada.</Text>
         </View>
       ) : (
         <FlatList
-          data={clinicas}
+          data={clinicasOrdenadas}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}

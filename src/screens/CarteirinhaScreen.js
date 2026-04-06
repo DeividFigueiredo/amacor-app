@@ -249,6 +249,11 @@ const handleGenerateToken = async () => {
 
     } catch (error) {
       console.error('Erro ao gerar token:', error);
+
+      if (error?.code === 'APP_VERSION_OUTDATED') {
+        Alert.alert('Atualização necessária', error.message || 'Atualize o app para continuar.');
+        return;
+      }
       
       // 🎯 TRATAR ERRO DE BENEFICIÁRIO CANCELADO
       if (error.message.includes('Beneficiário cancelado')) {
@@ -365,6 +370,10 @@ const handleGenerateToken = async () => {
       // Sem alertas ou fluxo de links no modo silencioso
     } catch (error) {
       console.error('Erro ao revalidar carteirinha:', error);
+      if (error?.code === 'APP_VERSION_OUTDATED') {
+        setError(error.message || 'Atualize o app para continuar.');
+        return;
+      }
       if (error.message.includes('Beneficiário cancelado')) {
         const motivo = error.message.replace('Beneficiário cancelado: ', '');
         setBeneficiarioCancelado(true);

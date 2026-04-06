@@ -62,7 +62,6 @@ export default function BuscarEspecialidades({ navigation }) {
     'Mastologia',
     'Psicologia',
     'Nutrição',
-    'Oncologia',
     'Fonoaudiologia',
     'Fisioterapia',
     'Angiologia',
@@ -123,6 +122,11 @@ export default function BuscarEspecialidades({ navigation }) {
       }
     } catch (error) {
       console.error('🚨 Erro ao buscar clínicas:', error);
+
+      if (error?.code === 'APP_VERSION_OUTDATED') {
+        Alert.alert('Atualização necessária', error.message || 'Atualize o app para continuar.');
+        return;
+      }
       
       Alert.alert(
         'Erro na busca',

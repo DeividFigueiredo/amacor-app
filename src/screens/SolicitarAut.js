@@ -163,7 +163,11 @@ export default function SolicitarAut({ navigation }) {
             }
         } catch (error) {
             console.error('Erro ao enviar autorização:', error);
-            Alert.alert('Erro', 'Erro ao processar solicitação: ' + error.message);
+            if (error?.code === 'APP_VERSION_OUTDATED') {
+                Alert.alert('Atualização necessária', error.message || 'Atualize o app para continuar.');
+            } else {
+                Alert.alert('Erro', 'Erro ao processar solicitação: ' + error.message);
+            }
         } finally {
             setLoading(false);
         }

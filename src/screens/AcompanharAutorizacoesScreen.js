@@ -48,7 +48,11 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
 
         } catch (error) {
             console.error('Erro ao carregar autorizações:', error);
-            Alert.alert('Erro', 'Não foi possível carregar as autorizações');
+            if (error?.code === 'APP_VERSION_OUTDATED') {
+                Alert.alert('Atualização necessária', error.message || 'Atualize o app para continuar.');
+            } else {
+                Alert.alert('Erro', 'Não foi possível carregar as autorizações');
+            }
         } finally {
             setLoading(false);
         }
@@ -140,6 +144,7 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
     const renderAutorizacao = ({ item }) => {
         const statusIcon = getStatusIcon(item.status);
         const statusLabel = getStatusLabel(item.status);
+        const protocolo = item.protocolo_sig || item.protocolo || item.id || 'N/A';
         
         return (
             <TouchableOpacity 
@@ -151,7 +156,7 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
                         `Carteira: ${item.card_beneficiario || 'N/A'}\n` +
                         `Exame: ${item.nome_exame || 'Não especificado'}\n` +
                         `Status: ${statusLabel}\n` +
-                        `Protocolo: #${item.id || 'N/A'}\n` +
+                        `Protocolo: #${protocolo}\n` +
                         `Data: ${formatarData(item.data_hora_registro, item.timestamp_solicitacao)}\n` +
                         `${item.observacao ? `\nObservação: ${item.observacao}` : ''}`
                     );
@@ -187,7 +192,7 @@ export default function AcompanharAutorizacoesScreen({ navigation }) {
 
                     <View style={styles.infoRow}>
                         <Ionicons name="document-text" size={18} color="#666" />
-                        <Text style={styles.protocolo}>Protocolo: #{item.id || 'N/A'}</Text>
+                        <Text style={styles.protocolo}>Protocolo: #{protocolo}</Text>
                     </View>
 
                     {item.observacao && (

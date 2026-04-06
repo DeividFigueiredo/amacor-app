@@ -9,12 +9,27 @@ import {
   Alert,
   ActivityIndicator,
   FlatList,
-  Image 
+  Image,
+  Platform 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as Application from 'expo-application';
 import { getLocationAsync } from '../utils/utils';
 import { getEverflowUrl } from '../mantis/config';
+import appConfig from '../../app.json';
+
+function getVersaoApp() {
+  try {
+    const version = appConfig.expo.version;
+    const buildNumber = Application.nativeBuildVersion || '1';
+    const platform = Platform.OS;
+    return `${platform}-${version}-${buildNumber}`;
+  } catch (error) {
+    console.error('Erro ao obter versão do app:', error);
+    return 'unknown';
+  }
+}
 
 export default function EncontrarClinicas({ navigation, route }) {
   const [location, setLocation] = useState(null);
@@ -106,6 +121,7 @@ export default function EncontrarClinicas({ navigation, route }) {
       setClinicas([]);
 
       const url = getEverflowUrl();
+      const versaoApp = getVersaoApp();
       // endpoint: ajuste se necessário no servidor
       const endpoint = '/clinicas_proximas';
 
@@ -113,6 +129,7 @@ export default function EncontrarClinicas({ navigation, route }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'App-Version': versaoApp,
         },
         body: JSON.stringify({
           latitude,
@@ -123,6 +140,21 @@ export default function EncontrarClinicas({ navigation, route }) {
       });
 
       if (!response.ok) {
+        if (response.status === 426) {
+          let responseBody = {};
+          try {
+            responseBody = await response.clone().json();
+          } catch (_) {
+            responseBody = {};
+          }
+
+          if (responseBody.error === 'blocked_app_version' || responseBody.error === 'unsupported_app_version') {
+            const versionError = new Error(responseBody.message || 'Atualize o app para continuar.');
+            versionError.code = 'APP_VERSION_OUTDATED';
+            throw versionError;
+          }
+        }
+
         throw new Error(`Erro HTTP: ${response.status}`);
       }
 
@@ -138,7 +170,11 @@ export default function EncontrarClinicas({ navigation, route }) {
       }
     } catch (error) {
       console.error('Erro ao buscar clínicas:', error);
-      Alert.alert('Erro', 'Nao foi possivel concluir a solicitacao. Tente novamente.');
+      if (error?.code === 'APP_VERSION_OUTDATED') {
+        Alert.alert('Atualização necessária', error.message || 'Atualize o app para continuar.');
+      } else {
+        Alert.alert('Erro', 'Nao foi possivel concluir a solicitacao. Tente novamente.');
+      }
     } finally {
       setLoadingClinicas(false);
     }

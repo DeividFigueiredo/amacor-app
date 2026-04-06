@@ -91,6 +91,10 @@ async function checkVersionError(response) {
     }
 }
 
+function isAppVersionOutdatedError(error) {
+    return error?.code === 'APP_VERSION_OUTDATED';
+}
+
 function isDeviceRegistrationSuccessful(response) {
     if (response === true) return true;
     if (response === null || response === undefined) return false;
@@ -162,6 +166,12 @@ export async function buscarCard(endpoint, cpf, token) {
         console.error('❌ Falha no registro de dispositivo antes do login:', deviceRegistrationResponse);
         if (isPushRegistrationForbidden(deviceRegistrationResponse)) {
             throw new Error('Ja existe um dispositivo cadastrado para este usuario. Entre em contato com a operadora de saude.');
+        }
+
+        if (deviceRegistrationResponse?.code === 'APP_VERSION_OUTDATED') {
+            const versionError = new Error(String(deviceRegistrationResponse.message || 'Atualize o app para continuar.'));
+            versionError.code = 'APP_VERSION_OUTDATED';
+            throw versionError;
         }
 
         if (deviceRegistrationResponse?.message) {
@@ -274,6 +284,10 @@ export async function buscarCard(endpoint, cpf, token) {
         
     } catch (error) {
         console.error('🚨 Erro ao buscar dados:', error);
+
+        if (isAppVersionOutdatedError(error)) {
+            throw error;
+        }
         
         if (error.message.includes('Beneficiário cancelado')) {
             throw error;
@@ -340,6 +354,11 @@ export async function buscarPagamentos(endpoint, contrato, token) {
         
      } catch (error) {
         console.error('Erro ao buscar dados:', error);
+
+        if (isAppVersionOutdatedError(error)) {
+            throw error;
+        }
+
         return null;
     }
     
@@ -391,6 +410,10 @@ export async function buscarClinicas(endpoint, especialidade, token){
 
     } catch (error) {
         console.error('🚨 Erro ao buscar dados:', error);
+
+        if (isAppVersionOutdatedError(error)) {
+            throw error;
+        }
         
         if (error.message.includes('Beneficiário cancelado')) {
             throw error;
@@ -458,6 +481,11 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
             return data;
         } catch (error) {
             console.error('Erro em enviarAutorizacao:', error);
+
+            if (isAppVersionOutdatedError(error)) {
+                throw error;
+            }
+
             return null;
         }
     }
@@ -494,6 +522,11 @@ export async function enviarAutorizacao(endpoint, token, tokenGerado, timestamp,
         return data;
     } catch (error) {
         console.error('Erro em enviarAutorizacao:', error);
+
+        if (isAppVersionOutdatedError(error)) {
+            throw error;
+        }
+
         return null;
     }
 }
@@ -595,6 +628,7 @@ export async function registrarPushToken(endpoint, token, payload) {
             success: false,
             status: 'error',
             httpStatus: 0,
+            code: error?.code,
             message: error?.message || 'Erro ao registrar push token',
         };
     }

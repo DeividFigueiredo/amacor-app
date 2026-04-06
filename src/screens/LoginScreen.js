@@ -79,6 +79,11 @@ export default function LoginScreen({ navigation, onLogin }) {
       }
     } catch (err) {
       console.error('Erro ao fazer login:', err);
+      if (err?.code === 'APP_VERSION_OUTDATED') {
+        Alert.alert('Atualização necessária', err.message || 'Atualize o app para continuar.');
+        return;
+      }
+
       const errorMessage = String(err?.message || '').toLowerCase();
       const isDeviceAlreadyRegisteredError =
         errorMessage.includes('ja existe um dispositivo cadastrado para este usuario') ||

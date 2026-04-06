@@ -76,6 +76,10 @@ export default function HomeScreen({ onLogout, navigation }) {
       }
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
+      if (err?.code === 'APP_VERSION_OUTDATED') {
+        setError(err.message || 'Atualize o app para continuar.');
+        return;
+      }
       
       // 🎯 TRATAR ERRO DE BENEFICIÁRIO CANCELADO
       if (err.message.includes('Beneficiário cancelado')) {
